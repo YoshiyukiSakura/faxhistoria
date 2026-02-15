@@ -26,6 +26,8 @@ function buildProgressEvent(update: TurnProgressUpdate): TurnProgressEvent {
     timestamp: new Date().toISOString(),
     ...(update.attempt !== undefined ? { attempt: update.attempt } : {}),
     ...(update.totalAttempts !== undefined ? { totalAttempts: update.totalAttempts } : {}),
+    ...(update.liveEvent ? { liveEvent: update.liveEvent } : {}),
+    ...(update.liveDraftEvent ? { liveDraftEvent: update.liveDraftEvent } : {}),
   };
 }
 

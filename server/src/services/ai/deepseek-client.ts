@@ -93,12 +93,22 @@ export interface AICallResult<T> {
   latencyMs: number;
 }
 
+function estimateTokens(text: string): number {
+  return Math.max(1, Math.ceil(text.length / 4));
+}
+
 export async function callDeepSeek<T>(
   systemPrompt: string,
   userPrompt: string,
   schema: z.ZodType<T, any, any>,
   maxRetries = 2,
   onAttempt?: (attempt: number, totalAttempts: number) => void,
+  onStreamChunk?: (
+    chunk: string,
+    accumulated: string,
+    attempt: number,
+    totalAttempts: number,
+  ) => void,
 ): Promise<AICallResult<T>> {
   let lastError = '';
   const totalAttempts = maxRetries + 1;
@@ -112,12 +122,17 @@ export async function callDeepSeek<T>(
   }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    onAttempt?.(attempt + 1, totalAttempts);
+    const currentAttempt = attempt + 1;
+    onAttempt?.(currentAttempt, totalAttempts);
     const start = Date.now();
-    let response: OpenAI.Chat.Completions.ChatCompletion;
+    let content = '';
+    let usage: AIUsage = {
+      promptTokens: 0,
+      outputTokens: 0,
+    };
 
     try {
-      response = await client.chat.completions.create({
+      const stream = await client.chat.completions.create({
         model: config.model,
         messages: [
           { role: 'system', content: systemPrompt },
@@ -132,27 +147,45 @@ export async function callDeepSeek<T>(
         response_format: { type: 'json_object' },
         max_tokens: 8192,
         temperature: 0.7,
+        stream: true,
       });
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta?.content;
+        if (typeof delta === 'string' && delta.length > 0) {
+          content += delta;
+          onStreamChunk?.(delta, content, currentAttempt, totalAttempts);
+        }
+
+        const chunkUsage = (chunk as { usage?: { prompt_tokens?: number; completion_tokens?: number } }).usage;
+        if (chunkUsage) {
+          usage = {
+            promptTokens: chunkUsage.prompt_tokens ?? usage.promptTokens,
+            outputTokens: chunkUsage.completion_tokens ?? usage.outputTokens,
+          };
+        }
+      }
     } catch (err) {
       const latencyMs = Date.now() - start;
       lastError = formatApiError(err, config);
       if (attempt === maxRetries) {
-        throw new AICallError(lastError, latencyMs, attempt + 1);
+        throw new AICallError(lastError, latencyMs, currentAttempt);
       }
       continue;
     }
 
     const latencyMs = Date.now() - start;
-    const content = response.choices[0]?.message?.content;
-    const usage: AIUsage = {
-      promptTokens: response.usage?.prompt_tokens ?? 0,
-      outputTokens: response.usage?.completion_tokens ?? 0,
-    };
+    if (usage.promptTokens <= 0) {
+      usage.promptTokens = estimateTokens(systemPrompt) + estimateTokens(userPrompt);
+    }
+    if (usage.outputTokens <= 0) {
+      usage.outputTokens = estimateTokens(content);
+    }
 
     if (!content) {
       lastError = 'Empty AI response';
       if (attempt === maxRetries) {
-        throw new AICallError(lastError, latencyMs, attempt + 1);
+        throw new AICallError(lastError, latencyMs, currentAttempt);
       }
       continue;
     }
@@ -164,7 +197,7 @@ export async function callDeepSeek<T>(
     } catch (e) {
       lastError = `JSON parse failed: ${e instanceof Error ? e.message : 'unknown'}`;
       if (attempt === maxRetries) {
-        throw new AICallError(lastError, latencyMs, attempt + 1);
+        throw new AICallError(lastError, latencyMs, currentAttempt);
       }
       continue;
     }
@@ -177,7 +210,7 @@ export async function callDeepSeek<T>(
 
     lastError = `Zod validation: ${parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ')}`;
     if (attempt === maxRetries) {
-      throw new AICallError(lastError, latencyMs, attempt + 1);
+      throw new AICallError(lastError, latencyMs, currentAttempt);
     }
   }
 

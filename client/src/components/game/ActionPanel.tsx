@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../../stores/game-store';
 import { useUIStore } from '../../stores/ui-store';
 import { Button } from '../common/Button';
+import { EVENT_TYPE_COLORS } from '@faxhistoria/shared';
 
 const STAGE_LABEL: Record<string, string> = {
   VALIDATING: 'Validating',
@@ -15,7 +16,14 @@ const STAGE_LABEL: Record<string, string> = {
 
 export function ActionPanel() {
   const [action, setAction] = useState('');
-  const { submitTurn, turnSubmitting, turnProgress, clearTurnProgress } = useGameStore();
+  const {
+    submitTurn,
+    turnSubmitting,
+    turnProgress,
+    turnLiveEvents,
+    turnDraftEvents,
+    clearTurnProgress,
+  } = useGameStore();
   const addToast = useUIStore((s) => s.addToast);
 
   const handleSubmit = async () => {
@@ -29,6 +37,10 @@ export function ActionPanel() {
       setAction('');
     }
   };
+
+  const showingFinalEvents = turnLiveEvents.length > 0;
+  const draftCount = turnDraftEvents.length;
+  const finalCount = turnLiveEvents.length;
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
@@ -52,25 +64,88 @@ export function ActionPanel() {
       />
       {(turnSubmitting || turnProgress) && (
         <div className="rounded-lg border border-border bg-bg px-3 py-2">
-          <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="text-text-secondary">
+          <div className="mb-2 flex items-center justify-between text-xs">
+            <span className="font-medium text-text-main">
               {STAGE_LABEL[turnProgress?.stage ?? 'VALIDATING'] ?? 'Processing'}
             </span>
-            <span className="font-medium text-text-main">
-              {Math.round(turnProgress?.progress ?? 0)}%
-            </span>
+            {turnSubmitting && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-primary">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                Live
+              </span>
+            )}
           </div>
-          <div className="h-1.5 w-full rounded-full bg-surface">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                turnProgress?.stage === 'FAILED' ? 'bg-danger' : 'bg-primary'
-              }`}
-              style={{ width: `${Math.max(2, Math.round(turnProgress?.progress ?? 0))}%` }}
-            />
-          </div>
-          <p className="mt-2 text-xs text-text-secondary">
+          <p className="text-xs text-text-secondary">
             {turnProgress?.message ?? 'Submitting turn...'}
           </p>
+          <div className="mt-3 rounded-md border border-border bg-surface p-2">
+            <div className="mb-2 flex items-center justify-between text-[11px] text-text-secondary">
+              <span>
+                {showingFinalEvents ? 'Generated Events' : 'Live Event Drafts'}
+              </span>
+              <span>{showingFinalEvents ? finalCount : draftCount}</span>
+            </div>
+            {!showingFinalEvents && turnDraftEvents.length === 0 ? (
+              <p className="text-xs text-text-secondary animate-pulse">
+                Waiting for AI to emit events...
+              </p>
+            ) : (
+              <div className="max-h-40 space-y-2 overflow-y-auto pr-1">
+                {showingFinalEvents
+                  ? turnLiveEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="rounded-md border border-border bg-bg px-2 py-2"
+                      >
+                        <div className="mb-1 flex items-center gap-2 text-[11px] text-text-secondary">
+                          <span
+                            className="inline-block h-2 w-2 rounded-full shrink-0"
+                            style={{
+                              backgroundColor:
+                                EVENT_TYPE_COLORS[event.type] ?? '#6B7280',
+                            }}
+                          />
+                          <span className="font-medium">{event.type}</span>
+                          <span className="ml-auto">
+                            {event.sequence}/{event.total}
+                          </span>
+                        </div>
+                        <p className="text-xs leading-relaxed text-text-main">
+                          {event.description}
+                        </p>
+                      </div>
+                    ))
+                  : turnDraftEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="rounded-md border border-border bg-bg px-2 py-2"
+                      >
+                        <div className="mb-1 flex items-center gap-2 text-[11px] text-text-secondary">
+                          <span
+                            className="inline-block h-2 w-2 rounded-full shrink-0"
+                            style={{
+                              backgroundColor:
+                                EVENT_TYPE_COLORS[event.type] ?? '#6B7280',
+                            }}
+                          />
+                          <span className="font-medium">{event.type}</span>
+                          <span className="ml-auto">
+                            Draft #{event.sequence}
+                          </span>
+                        </div>
+                        <p className="text-xs leading-relaxed text-text-main">
+                          {event.description || '...'}
+                          {!event.isFinal && turnSubmitting ? (
+                            <span className="ml-1 inline-block animate-pulse text-text-secondary">
+                              ...
+                            </span>
+                          ) : null}
+                        </p>
+                      </div>
+                    ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
       <div className="flex items-center justify-between">
@@ -78,7 +153,7 @@ export function ActionPanel() {
           {action.length}/2000
         </span>
         <Button onClick={handleSubmit} loading={turnSubmitting}>
-          {turnSubmitting ? 'Submitting...' : 'Submit Turn'}
+          {turnSubmitting ? 'Generating Events...' : 'Submit Turn'}
         </Button>
       </div>
     </div>

@@ -28,6 +28,23 @@ export const CreateGameRequestSchema = z.object({
   startYear: z.number().int().min(1900).max(2024).default(2024),
 });
 
+// ── Admin Schemas ──
+export const AdminTokenUsageStatsSchema = z.object({
+  totalModelRuns: z.number().int().min(0),
+  successfulModelRuns: z.number().int().min(0),
+  failedModelRuns: z.number().int().min(0),
+  promptTokens: z.number().int().min(0),
+  outputTokens: z.number().int().min(0),
+  totalTokens: z.number().int().min(0),
+});
+
+export const AdminStatsResponseSchema = z.object({
+  generatedAt: z.string(),
+  playerCount: z.number().int().min(0),
+  activePlayerCount: z.number().int().min(0),
+  tokenUsage: AdminTokenUsageStatsSchema,
+});
+
 // ── Turn Schemas ──
 export const SubmitTurnRequestSchema = z.object({
   action: z.string().min(1).max(2000),
@@ -59,6 +76,24 @@ export const TurnProgressStageSchema = z.enum([
   'FAILED',
 ]);
 
+export const TurnStreamEventSchema = z.object({
+  id: z.string(),
+  sequence: z.number().int().min(1),
+  total: z.number().int().min(1),
+  type: z.string(),
+  description: z.string(),
+  involvedCountries: z.array(z.string()),
+});
+
+export const TurnDraftEventSchema = z.object({
+  id: z.string(),
+  sequence: z.number().int().min(1),
+  type: z.string(),
+  description: z.string(),
+  involvedCountries: z.array(z.string()),
+  isFinal: z.boolean(),
+});
+
 export const TurnProgressEventSchema = z.object({
   stage: TurnProgressStageSchema,
   progress: z.number().min(0).max(100),
@@ -66,6 +101,8 @@ export const TurnProgressEventSchema = z.object({
   timestamp: z.string(),
   attempt: z.number().int().min(1).optional(),
   totalAttempts: z.number().int().min(1).optional(),
+  liveEvent: TurnStreamEventSchema.optional(),
+  liveDraftEvent: TurnDraftEventSchema.optional(),
   result: TurnResponseSchema.optional(),
   error: z.object({
     message: z.string(),
@@ -86,8 +123,12 @@ export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type CreateGameRequest = z.infer<typeof CreateGameRequestSchema>;
+export type AdminTokenUsageStats = z.infer<typeof AdminTokenUsageStatsSchema>;
+export type AdminStatsResponse = z.infer<typeof AdminStatsResponseSchema>;
 export type SubmitTurnRequest = z.infer<typeof SubmitTurnRequestSchema>;
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;
 export type TurnProgressStage = z.infer<typeof TurnProgressStageSchema>;
+export type TurnStreamEvent = z.infer<typeof TurnStreamEventSchema>;
+export type TurnDraftEvent = z.infer<typeof TurnDraftEventSchema>;
 export type TurnProgressEvent = z.infer<typeof TurnProgressEventSchema>;
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;

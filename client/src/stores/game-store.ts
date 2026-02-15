@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { api, ApiError } from '../services/api';
 import type { GameState, TurnProgressEvent, TurnResponse } from '@faxhistoria/shared';
 
+type LiveTurnEvent = NonNullable<TurnProgressEvent['liveEvent']>;
+type LiveDraftEvent = NonNullable<TurnProgressEvent['liveDraftEvent']>;
+
 interface GameSummary {
   id: string;
   name: string;
@@ -24,6 +27,8 @@ interface GameStoreState {
   // Turn
   turnSubmitting: boolean;
   turnProgress: TurnProgressEvent | null;
+  turnLiveEvents: LiveTurnEvent[];
+  turnDraftEvents: LiveDraftEvent[];
   lastTurnResponse: TurnResponse | null;
 
   error: string | null;
@@ -46,6 +51,8 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
   gameLoading: false,
   turnSubmitting: false,
   turnProgress: null,
+  turnLiveEvents: [],
+  turnDraftEvents: [],
   lastTurnResponse: null,
   error: null,
 
@@ -96,6 +103,8 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
     set({
       turnSubmitting: true,
       error: null,
+      turnLiveEvents: [],
+      turnDraftEvents: [],
       turnProgress: {
         stage: 'VALIDATING',
         progress: 0,
@@ -113,7 +122,45 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
         },
         idempotencyKey,
         (progress) => {
-          set({ turnProgress: progress });
+          set((state) => {
+            const shouldResetDrafts =
+              progress.stage === 'AI_RETRY' && (progress.attempt ?? 1) > 1;
+            let nextDraftEvents = shouldResetDrafts ? [] : state.turnDraftEvents;
+            if (progress.liveDraftEvent) {
+              const draftEvent = progress.liveDraftEvent;
+              const idx = nextDraftEvents.findIndex((event) => event.id === draftEvent.id);
+              if (idx >= 0) {
+                nextDraftEvents = [
+                  ...nextDraftEvents.slice(0, idx),
+                  draftEvent,
+                  ...nextDraftEvents.slice(idx + 1),
+                ];
+              } else {
+                nextDraftEvents = [...nextDraftEvents, draftEvent];
+              }
+            }
+
+            const liveEvent = progress.liveEvent;
+            let nextLiveEvents = state.turnLiveEvents;
+            if (!liveEvent) {
+              return {
+                turnProgress: progress,
+                turnDraftEvents: nextDraftEvents,
+              };
+            }
+            if (state.turnLiveEvents.some((event) => event.id === liveEvent.id)) {
+              return {
+                turnProgress: progress,
+                turnDraftEvents: nextDraftEvents,
+              };
+            }
+            nextLiveEvents = [...state.turnLiveEvents, liveEvent];
+            return {
+              turnProgress: progress,
+              turnLiveEvents: nextLiveEvents,
+              turnDraftEvents: nextDraftEvents,
+            };
+          });
         },
       );
       set({ lastTurnResponse: data });
@@ -141,7 +188,7 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
     }
   },
 
-  clearTurnProgress: () => set({ turnProgress: null }),
+  clearTurnProgress: () => set({ turnProgress: null, turnLiveEvents: [], turnDraftEvents: [] }),
   clearError: () => set({ error: null }),
   clearCurrentGame: () =>
     set({
@@ -149,5 +196,7 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
       gameState: null,
       lastTurnResponse: null,
       turnProgress: null,
+      turnLiveEvents: [],
+      turnDraftEvents: [],
     }),
 }));

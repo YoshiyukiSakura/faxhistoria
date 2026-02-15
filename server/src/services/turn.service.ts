@@ -1,7 +1,14 @@
 import { prisma } from '../lib/prisma';
 import { Prisma } from '@prisma/client';
 import type { Game } from '@prisma/client';
-import type { GameState, TurnProgressStage, TurnResponse, WorldEvent } from '@faxhistoria/shared';
+import type {
+  GameState,
+  TurnDraftEvent,
+  TurnProgressStage,
+  TurnResponse,
+  TurnStreamEvent,
+  WorldEvent,
+} from '@faxhistoria/shared';
 import { runSimulation } from './ai/ai-service';
 import { applyEvents } from './state.service';
 
@@ -24,6 +31,8 @@ export interface TurnProgressUpdate {
   message: string;
   attempt?: number;
   totalAttempts?: number;
+  liveEvent?: TurnStreamEvent;
+  liveDraftEvent?: TurnDraftEvent;
 }
 
 export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse> {
@@ -211,6 +220,17 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
           totalAttempts,
         });
       },
+      onAiDraftEvent: (draftEvent) => {
+        emitProgress({
+          stage: 'PROCESSING_AI',
+          progress: Math.min(72, 48 + draftEvent.sequence * 2),
+          message:
+            draftEvent.description.length > 0
+              ? `Drafting event ${draftEvent.sequence}: ${draftEvent.type}`
+              : `Drafting event ${draftEvent.sequence}`,
+          liveDraftEvent: draftEvent,
+        });
+      },
     });
     modelRunData = {
       model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
@@ -250,6 +270,33 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
     ...simulationResult.arbiterResult.approved,
     ...simulationResult.arbiterResult.degraded.map((d) => d.fallback),
   ];
+
+  const totalEvents = allEvents.length;
+  if (totalEvents === 0) {
+    emitProgress({
+      stage: 'APPLYING_EVENTS',
+      progress: 80,
+      message: 'No major events generated. Preparing to save turn',
+    });
+  } else {
+    for (let index = 0; index < totalEvents; index++) {
+      const event = allEvents[index];
+      const sequence = index + 1;
+      emitProgress({
+        stage: 'APPLYING_EVENTS',
+        progress: Math.min(85, 74 + Math.round((sequence / totalEvents) * 11)),
+        message: `Event ${sequence}/${totalEvents}: ${event.type}`,
+        liveEvent: {
+          id: `${idempotencyKey}-${sequence}`,
+          sequence,
+          total: totalEvents,
+          type: event.type,
+          description: event.description,
+          involvedCountries: event.involvedCountries,
+        },
+      });
+    }
+  }
 
   // ═══ Phase C: Short Transaction - Apply Events and Commit ═══
   let turnResponse: TurnResponse;
