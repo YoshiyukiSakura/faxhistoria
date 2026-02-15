@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  dailyApiCalls Int     @default(0)
+  lastCallDate DateTime?
+  createdAt    DateTime @default(now())
+
+  games Game[]
+}
+
+enum GameStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+model Game {
+  id              String     @id @default(uuid())
+  userId          String
+  name            String
+  playerCountry   String
+  startYear       Int
+  currentYear     Int
+  turnNumber      Int        @default(0)
+  status          GameStatus @default(ACTIVE)
+  currentState    Json
+  totalTokensUsed Int        @default(0)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user            User       @relation(fields: [userId], references: [id])
+  turns           Turn[]
+  snapshots       GameSnapshot[]
+  idempotencyKeys IdempotencyKey[]
+  modelRuns       ModelRun[]
+}
+
+enum IdempotencyStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+model IdempotencyKey {
+  id             String            @id @default(uuid())
+  gameId         String
+  key            String
+  status         IdempotencyStatus @default(IN_PROGRESS)
+  turnId         String?
+  responseHash   String?
+  cachedResult   Json?
+  leaseExpiresAt DateTime
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  game           Game              @relation(fields: [gameId], references: [id])
+
+  @@unique([gameId, key])
+}
+
+enum TurnStatus {
+  COMPLETED
+  FAILED
+}
+
+model Turn {
+  id           String     @id @default(uuid())
+  gameId       String
+  turnNumber   Int
+  year         Int
+  playerAction String
+  status       TurnStatus @default(COMPLETED)
+  createdAt    DateTime   @default(now())
+
+  game         Game       @relation(fields: [gameId], references: [id])
+  events       TurnEvent[]
+  modelRuns    ModelRun[]
+
+  @@unique([gameId, turnNumber])
+}
+
+model TurnEvent {
+  id        String   @id @default(uuid())
+  turnId    String
+  eventType String
+  eventData Json
+  sequence  Int
+  createdAt DateTime @default(now())
+
+  turn      Turn     @relation(fields: [turnId], references: [id])
+
+  @@unique([turnId, sequence])
+}
+
+model GameSnapshot {
+  id         String   @id @default(uuid())
+  gameId     String
+  turnNumber Int
+  year       Int
+  state      Json
+  createdAt  DateTime @default(now())
+
+  game       Game     @relation(fields: [gameId], references: [id])
+
+  @@unique([gameId, turnNumber])
+}
+
+model ModelRun {
+  id           String   @id @default(uuid())
+  turnId       String?
+  gameId       String
+  model        String
+  promptTokens Int
+  outputTokens Int
+  latencyMs    Int
+  success      Boolean
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  turn         Turn?    @relation(fields: [turnId], references: [id])
+  game         Game     @relation(fields: [gameId], references: [id])
+
+  @@index([gameId])
+}
