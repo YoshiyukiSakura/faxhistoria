@@ -70,6 +70,16 @@ test.describe('Auth E2E', () => {
     expect(body.error).toBe('UNAUTHORIZED');
   });
 
+  test('should create guest account → 201 + token + guest user', async ({ request }) => {
+    const res = await request.post('/api/auth/guest', { data: {} });
+    expect(res.status()).toBe(201);
+    const body = await res.json();
+    expect(body.token).toBeDefined();
+    expect(typeof body.token).toBe('string');
+    expect(body.user.email).toContain('@guest.faxhistoria.local');
+    expect(body.user.displayName).toContain('Guest-');
+  });
+
   test('should reject protected route without token → 401', async ({ request }) => {
     const res = await request.get('/api/games');
     expect(res.status()).toBe(401);

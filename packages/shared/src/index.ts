@@ -26,6 +26,7 @@ export {
 export {
   RegisterRequestSchema,
   LoginRequestSchema,
+  GuestLoginRequestSchema,
   AuthResponseSchema,
   CreateGameRequestSchema,
   AdminTokenUsageStatsSchema,
@@ -68,6 +69,7 @@ export type {
 export type {
   RegisterRequest,
   LoginRequest,
+  GuestLoginRequest,
   AuthResponse,
   CreateGameRequest,
   AdminTokenUsageStats,

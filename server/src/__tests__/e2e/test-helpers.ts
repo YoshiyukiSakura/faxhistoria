@@ -124,5 +124,12 @@ export async function cleanupTestData() {
   await prisma.idempotencyKey.deleteMany({ where: { game: { name: { startsWith: 'Test Game' } } } });
   await prisma.gameSnapshot.deleteMany({ where: { game: { name: { startsWith: 'Test Game' } } } });
   await prisma.game.deleteMany({ where: { name: { startsWith: 'Test Game' } } });
-  await prisma.user.deleteMany({ where: { email: { contains: 'e2e-test-' } } });
+  await prisma.user.deleteMany({
+    where: {
+      OR: [
+        { email: { contains: 'e2e-test-' } },
+        { email: { contains: '@guest.faxhistoria.local' } },
+      ],
+    },
+  });
 }

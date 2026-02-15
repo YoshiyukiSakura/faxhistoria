@@ -15,6 +15,7 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
+  loginAsGuest: () => Promise<void>;
   register: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => void;
   clearError: () => void;
@@ -35,6 +36,17 @@ export const useAuthStore = create<AuthState>()(
           set({ token: data.token, user: data.user, loading: false });
         } catch (err) {
           const message = err instanceof ApiError ? err.message : 'Login failed';
+          set({ loading: false, error: message });
+        }
+      },
+
+      loginAsGuest: async () => {
+        set({ loading: true, error: null });
+        try {
+          const data = await api.post<AuthResponse>('/auth/guest', {});
+          set({ token: data.token, user: data.user, loading: false });
+        } catch (err) {
+          const message = err instanceof ApiError ? err.message : 'Guest login failed';
           set({ loading: false, error: message });
         }
       },

@@ -6,12 +6,19 @@ import { Button } from '../common/Button';
 export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, loading, error, clearError } = useAuthStore();
+  const { login, loginAsGuest, loading, error, clearError } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     await login(email, password);
+    if (useAuthStore.getState().token) {
+      navigate('/lobby');
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    await loginAsGuest();
     if (useAuthStore.getState().token) {
       navigate('/lobby');
     }
@@ -63,6 +70,15 @@ export function LoginForm() {
 
           <Button type="submit" loading={loading}>
             Sign In
+          </Button>
+
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={loading}
+            onClick={handleGuestLogin}
+          >
+            Continue as Guest
           </Button>
         </form>
 

@@ -1,12 +1,25 @@
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth-store';
+import { Button } from '../common/Button';
 
 export function HomePage() {
+  const navigate = useNavigate();
   const token = useAuthStore((s) => s.token);
+  const loading = useAuthStore((s) => s.loading);
+  const loginAsGuest = useAuthStore((s) => s.loginAsGuest);
+  const error = useAuthStore((s) => s.error);
+  const clearError = useAuthStore((s) => s.clearError);
 
   if (token) {
     return <Navigate to="/lobby" replace />;
   }
+
+  const handleGuestPlay = async () => {
+    await loginAsGuest();
+    if (useAuthStore.getState().token) {
+      navigate('/lobby');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-bg text-text-main">
@@ -45,9 +58,12 @@ export function HomePage() {
             explainable ways.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
+            <Button onClick={handleGuestPlay} loading={loading}>
+              Play Instantly as Guest
+            </Button>
             <Link
               to="/register"
-              className="rounded-lg bg-primary px-5 py-3 font-medium text-white transition-colors hover:bg-primary-hover"
+              className="rounded-lg border border-border px-5 py-3 font-medium text-text-main transition-colors hover:bg-surface"
             >
               Create Account
             </Link>
@@ -58,6 +74,18 @@ export function HomePage() {
               I already have an account
             </Link>
           </div>
+          {error && (
+            <div className="mt-4 rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
+              {error}
+              <button
+                type="button"
+                onClick={clearError}
+                className="ml-2 cursor-pointer underline"
+              >
+                dismiss
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="mx-auto grid max-w-5xl gap-4 px-6 pb-20 sm:grid-cols-3">

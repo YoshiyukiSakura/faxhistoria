@@ -12,6 +12,8 @@ export const LoginRequestSchema = z.object({
   password: z.string(),
 });
 
+export const GuestLoginRequestSchema = z.object({}).strict();
+
 export const AuthResponseSchema = z.object({
   token: z.string(),
   user: z.object({
@@ -136,6 +138,7 @@ export const ErrorResponseSchema = z.object({
 // ── Types ──
 export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
+export type GuestLoginRequest = z.infer<typeof GuestLoginRequestSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type CreateGameRequest = z.infer<typeof CreateGameRequestSchema>;
 export type AdminTokenUsageStats = z.infer<typeof AdminTokenUsageStatsSchema>;
