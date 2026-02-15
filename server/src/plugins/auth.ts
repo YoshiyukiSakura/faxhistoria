@@ -16,7 +16,7 @@ declare module 'fastify' {
 }
 
 async function authPluginFn(fastify: FastifyInstance) {
-  fastify.decorateRequest('jwtUser', null);
+  fastify.decorateRequest('jwtUser', null as unknown as JwtPayload);
 
   fastify.decorate('authenticate', async function (request: FastifyRequest, reply: FastifyReply) {
     try {
