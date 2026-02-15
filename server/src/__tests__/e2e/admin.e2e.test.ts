@@ -54,5 +54,27 @@ test.describe('Admin Stats E2E', () => {
     expect(typeof body.tokenUsage.promptTokens).toBe('number');
     expect(typeof body.tokenUsage.outputTokens).toBe('number');
     expect(typeof body.tokenUsage.totalTokens).toBe('number');
+    expect(Array.isArray(body.players)).toBe(true);
+    expect(body.players.length).toBeGreaterThanOrEqual(1);
+
+    const createdPlayer = body.players.find((player: { email: string }) => player.email === email);
+    expect(createdPlayer).toBeDefined();
+    if (!createdPlayer) {
+      throw new Error('Expected created player to be present in admin response');
+    }
+    expect(typeof createdPlayer.id).toBe('string');
+    expect(typeof createdPlayer.displayName).toBe('string');
+    expect(typeof createdPlayer.createdAt).toBe('string');
+    expect(typeof createdPlayer.dailyApiCalls).toBe('number');
+    expect(
+      createdPlayer.lastCallDate === null || typeof createdPlayer.lastCallDate === 'string',
+    ).toBeTruthy();
+    expect(typeof createdPlayer.totalGames).toBe('number');
+    expect(typeof createdPlayer.activeGames).toBe('number');
+    expect(typeof createdPlayer.completedGames).toBe('number');
+    expect(typeof createdPlayer.abandonedGames).toBe('number');
+    expect(
+      createdPlayer.latestGameAt === null || typeof createdPlayer.latestGameAt === 'string',
+    ).toBeTruthy();
   });
 });

@@ -38,11 +38,26 @@ export const AdminTokenUsageStatsSchema = z.object({
   totalTokens: z.number().int().min(0),
 });
 
+export const AdminPlayerDetailSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  displayName: z.string().min(1).max(50),
+  createdAt: z.string(),
+  lastCallDate: z.string().nullable(),
+  dailyApiCalls: z.number().int().min(0),
+  totalGames: z.number().int().min(0),
+  activeGames: z.number().int().min(0),
+  completedGames: z.number().int().min(0),
+  abandonedGames: z.number().int().min(0),
+  latestGameAt: z.string().nullable(),
+});
+
 export const AdminStatsResponseSchema = z.object({
   generatedAt: z.string(),
   playerCount: z.number().int().min(0),
   activePlayerCount: z.number().int().min(0),
   tokenUsage: AdminTokenUsageStatsSchema,
+  players: z.array(AdminPlayerDetailSchema),
 });
 
 // ── Turn Schemas ──
@@ -124,6 +139,7 @@ export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type CreateGameRequest = z.infer<typeof CreateGameRequestSchema>;
 export type AdminTokenUsageStats = z.infer<typeof AdminTokenUsageStatsSchema>;
+export type AdminPlayerDetail = z.infer<typeof AdminPlayerDetailSchema>;
 export type AdminStatsResponse = z.infer<typeof AdminStatsResponseSchema>;
 export type SubmitTurnRequest = z.infer<typeof SubmitTurnRequestSchema>;
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;
