@@ -136,7 +136,10 @@ npm run build -w server
 ```bash
 cd ~/apps/faxhistoria
 pm2 delete faxhistoria-server || true
-pm2 start ecosystem.server.prod.cjs --only faxhistoria-server --update-env
+set -a
+source .env
+set +a
+pm2 start server/dist/index.js --name faxhistoria-server --cwd /home/ubuntu/apps/faxhistoria --time --update-env
 ```
 
 检查状态与日志：
@@ -231,10 +234,9 @@ test -d .git
 
 git fetch origin --prune
 git checkout main
-git pull --ff-only origin main
-
-# 发布前必须是干净工作区（严格模式）
-test -z "$(git status --porcelain)" || { echo "Working tree is dirty. Commit/stash first."; exit 1; }
+git reset --hard origin/main
+git clean -fd
+test -z "$(git status --porcelain)"
 
 # 核对当前部署 SHA（应与本地发布 SHA 一致）
 git rev-parse --short HEAD
@@ -260,7 +262,7 @@ pm2 delete faxhistoria-server || true
 truncate -s 0 ~/.pm2/logs/faxhistoria-server-out.log ~/.pm2/logs/faxhistoria-server-error.log 2>/dev/null || true
 
 # 严格通过 PM2 配置启动（单实例）
-pm2 start ecosystem.server.prod.cjs --only faxhistoria-server --update-env
+pm2 start server/dist/index.js --name faxhistoria-server --cwd /home/ubuntu/apps/faxhistoria --time --update-env
 
 pm2 save
 pm2 status faxhistoria-server
