@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/auth-store';
 import { LoginForm } from './components/auth/LoginForm';
 import { RegisterForm } from './components/auth/RegisterForm';
@@ -7,7 +7,64 @@ import { AdminPanel } from './components/admin/AdminPanel';
 import { CountrySelectionScreen } from './components/selection/CountrySelectionScreen';
 import { GameUI } from './components/game/GameUI';
 import { ToastProvider } from './components/layout/ToastProvider';
+import { HomePage } from './components/marketing/HomePage';
+import { SeoHead } from './components/seo/SeoHead';
+import { DEFAULT_SEO_DESCRIPTION } from './config/site';
 import type { ReactNode } from 'react';
+
+interface RouteSeo {
+  title: string;
+  description: string;
+  robots?: string;
+}
+
+const NOINDEX = 'noindex, nofollow';
+
+function getRouteSeo(pathname: string): RouteSeo {
+  if (pathname === '/') {
+    return {
+      title: 'FaxHistoria - AI Alternate History Strategy Game',
+      description:
+        'Play FaxHistoria, an AI-driven alternate history strategy game where each turn reshapes diplomacy, economy, and warfare.',
+      robots: 'index, follow',
+    };
+  }
+
+  if (pathname === '/login') {
+    return {
+      title: 'Sign In',
+      description: 'Sign in to continue your FaxHistoria campaign.',
+      robots: NOINDEX,
+    };
+  }
+
+  if (pathname === '/register') {
+    return {
+      title: 'Create Account',
+      description: 'Create your FaxHistoria account and start your first campaign.',
+      robots: NOINDEX,
+    };
+  }
+
+  if (
+    pathname === '/lobby' ||
+    pathname === '/admin' ||
+    pathname === '/game/new/select-country' ||
+    pathname.startsWith('/game/')
+  ) {
+    return {
+      title: 'Game Dashboard',
+      description: 'Private gameplay area for authenticated FaxHistoria players.',
+      robots: NOINDEX,
+    };
+  }
+
+  return {
+    title: 'FaxHistoria',
+    description: DEFAULT_SEO_DESCRIPTION,
+    robots: NOINDEX,
+  };
+}
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -21,11 +78,20 @@ function PublicRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export function App() {
+function RouterContent() {
+  const location = useLocation();
+  const seo = getRouteSeo(location.pathname);
+
   return (
-    <BrowserRouter>
+    <>
+      <SeoHead
+        title={seo.title}
+        description={seo.description}
+        pathname={location.pathname}
+        robots={seo.robots}
+      />
       <Routes>
-        <Route path="/" element={<RootRedirect />} />
+        <Route path="/" element={<HomePage />} />
         <Route
           path="/login"
           element={
@@ -85,11 +151,14 @@ export function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <ToastProvider />
-    </BrowserRouter>
+    </>
   );
 }
 
-function RootRedirect() {
-  const token = useAuthStore((s) => s.token);
-  return <Navigate to={token ? '/lobby' : '/login'} replace />;
+export function App() {
+  return (
+    <BrowserRouter>
+      <RouterContent />
+    </BrowserRouter>
+  );
 }

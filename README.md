@@ -46,6 +46,7 @@ DEEPSEEK_BASE_URL="https://api.deepseek.com"
 DEEPSEEK_MODEL="deepseek-chat"
 JWT_SECRET="replace_with_a_strong_secret"
 PORT=40010
+VITE_SITE_URL="https://your-domain.example"
 NODE_ENV=development
 DAILY_API_LIMIT=50
 GAME_TOKEN_LIMIT=500000
@@ -53,6 +54,7 @@ GAME_TOKEN_LIMIT=500000
 
 说明：
 - `DEEPSEEK_API_KEY` 不配置时，提交回合会失败。
+- `VITE_SITE_URL` 用于生成 `canonical`、`robots.txt`、`sitemap.xml`，生产环境请配置为站点主域名（如 `https://faxhistoria.vercel.app`）。
 - 默认前端端口 `40011`，并通过 Vite 代理转发 `/api` 到后端 `40010`。
 
 ## 快速启动（推荐）
@@ -117,4 +119,3 @@ npm run db:migrate
 - 前后端共享类型定义在 `packages/shared/src`，新增接口时优先在这里补 schema。
 - 后端使用 JWT 鉴权；受保护接口依赖 `Authorization: Bearer <token>`。
 - 若你已在本机运行其他 PostgreSQL，请注意端口冲突（默认映射为 `5433`）。
-
