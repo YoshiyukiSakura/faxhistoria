@@ -1,4 +1,5 @@
-import Fastify from 'fastify';
+import './env';
+import Fastify, { FastifyError } from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import jwt from '@fastify/jwt';
@@ -7,14 +8,16 @@ import { authRoutes } from './routes/auth';
 import { gameRoutes } from './routes/game';
 import { turnRoutes } from './routes/turn';
 
-import { config } from 'dotenv';
-import { resolve } from 'path';
-
-// Load .env from project root
-config({ path: resolve(__dirname, '../../.env') });
-
 const PORT = Number(process.env.PORT) || 40010;
-const JWT_SECRET = process.env.JWT_SECRET || 'faxhistoria-jwt-secret-change-in-production';
+function getRequiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} environment variable is required`);
+  return value;
+}
+const JWT_SECRET = getRequiredEnv('JWT_SECRET');
+getRequiredEnv('DEEPSEEK_API_KEY');
+getRequiredEnv('DEEPSEEK_BASE_URL');
+getRequiredEnv('DEEPSEEK_MODEL');
 
 async function main() {
   const fastify = Fastify({ logger: true });
@@ -47,7 +50,7 @@ async function main() {
   });
 
   // Global error handler
-  fastify.setErrorHandler((error, request, reply) => {
+  fastify.setErrorHandler((error: FastifyError, request, reply) => {
     fastify.log.error(error);
 
     if (error.validation) {

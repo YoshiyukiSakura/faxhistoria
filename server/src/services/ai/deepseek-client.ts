@@ -1,10 +1,86 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
 
-const client = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY || '',
-  baseURL: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
-});
+const DEFAULT_BASE_URL = 'https://api.deepseek.com';
+const DEFAULT_MODEL = 'deepseek-chat';
+
+interface DeepSeekRuntimeConfig {
+  apiKey: string;
+  baseURL: string;
+  model: string;
+}
+
+let cachedClient: OpenAI | null = null;
+let cachedClientSignature = '';
+
+function redactKey(apiKey: string): string {
+  if (apiKey.length <= 4) return '***';
+  return `***${apiKey.slice(-4)}`;
+}
+
+function readDeepSeekConfig(): DeepSeekRuntimeConfig {
+  const apiKey = (process.env.DEEPSEEK_API_KEY || '').trim();
+  const baseURL = (process.env.DEEPSEEK_BASE_URL || DEFAULT_BASE_URL).trim();
+  const model = (process.env.DEEPSEEK_MODEL || DEFAULT_MODEL).trim();
+
+  if (!apiKey) {
+    throw new DeepSeekConfigError(
+      'DEEPSEEK_API_KEY is missing. Set it in the repo-root .env and restart PM2 with --update-env.',
+    );
+  }
+  if (!baseURL) {
+    throw new DeepSeekConfigError('DEEPSEEK_BASE_URL is missing.');
+  }
+  if (!model) {
+    throw new DeepSeekConfigError('DEEPSEEK_MODEL is missing.');
+  }
+
+  return { apiKey, baseURL, model };
+}
+
+function getClient(config: DeepSeekRuntimeConfig): OpenAI {
+  const signature = `${config.baseURL}|${config.apiKey}`;
+  if (!cachedClient || cachedClientSignature !== signature) {
+    cachedClient = new OpenAI({
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+    });
+    cachedClientSignature = signature;
+  }
+  return cachedClient;
+}
+
+function formatApiError(err: unknown, config: DeepSeekRuntimeConfig): string {
+  const e = err as {
+    status?: number;
+    code?: string;
+    message?: string;
+    error?: {
+      message?: string;
+      code?: string;
+    };
+  };
+
+  const status = typeof e.status === 'number' ? e.status : undefined;
+  const upstreamMessage =
+    typeof e.error?.message === 'string'
+      ? e.error.message
+      : err instanceof Error
+        ? err.message
+        : 'Unknown API error';
+  const code =
+    typeof e.error?.code === 'string'
+      ? e.error.code
+      : typeof e.code === 'string'
+        ? e.code
+        : undefined;
+
+  const context = `baseURL=${config.baseURL}, model=${config.model}, key=${redactKey(config.apiKey)}`;
+  if (status === 401) {
+    return `DeepSeek auth failed (401). ${context}. Upstream: ${upstreamMessage}`;
+  }
+  return `DeepSeek request failed${status ? ` (status ${status})` : ''}. ${context}. Upstream: ${upstreamMessage}${code ? ` (code: ${code})` : ''}`;
+}
 
 export interface AIUsage {
   promptTokens: number;
@@ -20,18 +96,29 @@ export interface AICallResult<T> {
 export async function callDeepSeek<T>(
   systemPrompt: string,
   userPrompt: string,
-  schema: z.ZodType<T>,
+  schema: z.ZodType<T, any, any>,
   maxRetries = 2,
+  onAttempt?: (attempt: number, totalAttempts: number) => void,
 ): Promise<AICallResult<T>> {
   let lastError = '';
+  const totalAttempts = maxRetries + 1;
+  let config: DeepSeekRuntimeConfig;
+  let client: OpenAI;
+  try {
+    config = readDeepSeekConfig();
+    client = getClient(config);
+  } catch (err) {
+    throw new AICallError(err instanceof Error ? err.message : 'DeepSeek configuration error', 0, 0);
+  }
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    onAttempt?.(attempt + 1, totalAttempts);
     const start = Date.now();
     let response: OpenAI.Chat.Completions.ChatCompletion;
 
     try {
       response = await client.chat.completions.create({
-        model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+        model: config.model,
         messages: [
           { role: 'system', content: systemPrompt },
           {
@@ -48,7 +135,7 @@ export async function callDeepSeek<T>(
       });
     } catch (err) {
       const latencyMs = Date.now() - start;
-      lastError = err instanceof Error ? err.message : 'Unknown API error';
+      lastError = formatApiError(err, config);
       if (attempt === maxRetries) {
         throw new AICallError(lastError, latencyMs, attempt + 1);
       }
@@ -106,5 +193,12 @@ export class AICallError extends Error {
   ) {
     super(`AI call failed after ${attempts} attempts: ${message}`);
     this.name = 'AICallError';
+  }
+}
+
+class DeepSeekConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DeepSeekConfigError';
   }
 }
