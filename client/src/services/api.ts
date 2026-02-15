@@ -1,4 +1,4 @@
-import type { TurnProgressEvent, TurnResponse } from '@faxhistoria/shared';
+import type { AdminStatsResponse, TurnProgressEvent, TurnResponse } from '@faxhistoria/shared';
 
 const BASE_URL = '/api';
 
@@ -52,6 +52,8 @@ async function request<T>(
 }
 
 export const api = {
+  getAdminStats: () => request<AdminStatsResponse>('/admin/stats'),
+
   get: <T>(path: string) => request<T>(path),
 
   post: <T>(path: string, body?: unknown) =>

@@ -5,6 +5,7 @@ import rateLimit from '@fastify/rate-limit';
 import jwt from '@fastify/jwt';
 import { authPlugin } from './plugins/auth';
 import { authRoutes } from './routes/auth';
+import { adminRoutes } from './routes/admin';
 import { gameRoutes } from './routes/game';
 import { turnRoutes } from './routes/turn';
 
@@ -41,6 +42,7 @@ async function main() {
 
   // Register routes
   await fastify.register(authRoutes);
+  await fastify.register(adminRoutes);
   await fastify.register(gameRoutes);
   await fastify.register(turnRoutes);
 

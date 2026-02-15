@@ -3,6 +3,7 @@ import { useAuthStore } from './stores/auth-store';
 import { LoginForm } from './components/auth/LoginForm';
 import { RegisterForm } from './components/auth/RegisterForm';
 import { GameLobby } from './components/lobby/GameLobby';
+import { AdminPanel } from './components/admin/AdminPanel';
 import { CountrySelectionScreen } from './components/selection/CountrySelectionScreen';
 import { GameUI } from './components/game/GameUI';
 import { ToastProvider } from './components/layout/ToastProvider';
@@ -46,6 +47,14 @@ export function App() {
           element={
             <ProtectedRoute>
               <GameLobby />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminPanel />
             </ProtectedRoute>
           }
         />

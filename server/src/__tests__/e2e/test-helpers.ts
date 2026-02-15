@@ -108,6 +108,12 @@ export async function listGames(request: APIRequestContext, token: string) {
   });
 }
 
+export async function getAdminStats(request: APIRequestContext, token: string) {
+  return request.get('/api/admin/stats', {
+    headers: { authorization: `Bearer ${token}` },
+  });
+}
+
 /**
  * Cleanup all e2e test data. Called after each test file.
  */

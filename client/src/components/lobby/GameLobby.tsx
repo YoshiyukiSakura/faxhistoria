@@ -26,6 +26,12 @@ export function GameLobby() {
           </p>
         </div>
         <div className="flex gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/admin')}
+          >
+            Admin Panel
+          </Button>
           <Button onClick={() => navigate('/game/new/select-country')}>
             New Game
           </Button>
