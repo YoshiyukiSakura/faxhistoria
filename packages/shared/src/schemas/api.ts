@@ -49,6 +49,30 @@ export const TurnResponseSchema = z.object({
   stateVersion: z.number(), // turnNumber serves as version
 });
 
+export const TurnProgressStageSchema = z.enum([
+  'VALIDATING',
+  'PROCESSING_AI',
+  'AI_RETRY',
+  'APPLYING_EVENTS',
+  'PERSISTING',
+  'COMPLETED',
+  'FAILED',
+]);
+
+export const TurnProgressEventSchema = z.object({
+  stage: TurnProgressStageSchema,
+  progress: z.number().min(0).max(100),
+  message: z.string(),
+  timestamp: z.string(),
+  attempt: z.number().int().min(1).optional(),
+  totalAttempts: z.number().int().min(1).optional(),
+  result: TurnResponseSchema.optional(),
+  error: z.object({
+    message: z.string(),
+    statusCode: z.number().optional(),
+  }).optional(),
+});
+
 // ── Error Response ──
 export const ErrorResponseSchema = z.object({
   error: z.string(),
@@ -64,4 +88,6 @@ export type AuthResponse = z.infer<typeof AuthResponseSchema>;
 export type CreateGameRequest = z.infer<typeof CreateGameRequestSchema>;
 export type SubmitTurnRequest = z.infer<typeof SubmitTurnRequestSchema>;
 export type TurnResponse = z.infer<typeof TurnResponseSchema>;
+export type TurnProgressStage = z.infer<typeof TurnProgressStageSchema>;
+export type TurnProgressEvent = z.infer<typeof TurnProgressEventSchema>;
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;

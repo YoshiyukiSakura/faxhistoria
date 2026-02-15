@@ -4,7 +4,7 @@ import { resolve } from 'path';
 export default defineConfig({
   testDir: './src/__tests__/e2e',
   testMatch: '**/*.e2e.test.ts',
-  timeout: 120_000,
+  timeout: 300_000, // AI calls on self-hosted instance can take 2-3 min
   retries: 0,
   workers: 1, // sequential — tests share DB state
   reporter: 'list',

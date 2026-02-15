@@ -30,6 +30,8 @@ export {
   CreateGameRequestSchema,
   SubmitTurnRequestSchema,
   TurnResponseSchema,
+  TurnProgressStageSchema,
+  TurnProgressEventSchema,
   ErrorResponseSchema,
 } from './schemas/api';
 
@@ -65,6 +67,8 @@ export type {
   CreateGameRequest,
   SubmitTurnRequest,
   TurnResponse,
+  TurnProgressStage,
+  TurnProgressEvent,
   ErrorResponse,
 } from './schemas/api';
 

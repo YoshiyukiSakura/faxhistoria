@@ -12,12 +12,17 @@ export interface SimulationResult {
   latencyMs: number;
 }
 
+interface RunSimulationOptions {
+  onAiAttempt?: (attempt: number, totalAttempts: number) => void;
+}
+
 /**
  * Run a full simulation turn: call AI → validate → arbitrate.
  */
 export async function runSimulation(
   state: GameState,
   playerAction: string,
+  options: RunSimulationOptions = {},
 ): Promise<SimulationResult> {
   const systemPrompt = buildSystemPrompt();
   const contextBudget = getContextBudget(state);
@@ -29,6 +34,7 @@ export async function runSimulation(
     userPrompt,
     AISimulationResponseSchema,
     2, // max retries
+    options.onAiAttempt,
   );
 
   // Arbitrate events against game rules

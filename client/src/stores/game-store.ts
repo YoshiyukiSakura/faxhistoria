@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { api, ApiError } from '../services/api';
-import type { GameState, TurnResponse } from '@faxhistoria/shared';
+import type { GameState, TurnProgressEvent, TurnResponse } from '@faxhistoria/shared';
 
 interface GameSummary {
   id: string;
@@ -23,6 +23,7 @@ interface GameStoreState {
 
   // Turn
   turnSubmitting: boolean;
+  turnProgress: TurnProgressEvent | null;
   lastTurnResponse: TurnResponse | null;
 
   error: string | null;
@@ -32,6 +33,7 @@ interface GameStoreState {
   createGame: (name: string, playerCountry: string, startYear?: number) => Promise<string | null>;
   loadGame: (gameId: string) => Promise<void>;
   submitTurn: (action: string) => Promise<TurnResponse | null>;
+  clearTurnProgress: () => void;
   clearError: () => void;
   clearCurrentGame: () => void;
 }
@@ -43,6 +45,7 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
   gameState: null,
   gameLoading: false,
   turnSubmitting: false,
+  turnProgress: null,
   lastTurnResponse: null,
   error: null,
 
@@ -90,29 +93,61 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
     if (!currentGameId || !gameState) return null;
 
     const idempotencyKey = crypto.randomUUID();
-    set({ turnSubmitting: true, error: null });
+    set({
+      turnSubmitting: true,
+      error: null,
+      turnProgress: {
+        stage: 'VALIDATING',
+        progress: 0,
+        message: 'Preparing turn request',
+        timestamp: new Date().toISOString(),
+      },
+    });
 
     try {
-      const data = await api.postWithIdempotency<TurnResponse>(
-        `/games/${currentGameId}/turn`,
+      const data = await api.postTurnWithProgress(
+        `/games/${currentGameId}/turn/stream`,
         {
           action,
           expectedTurnNumber: gameState.turnNumber,
         },
         idempotencyKey,
+        (progress) => {
+          set({ turnProgress: progress });
+        },
       );
-      set({ lastTurnResponse: data, turnSubmitting: false });
+      set({ lastTurnResponse: data });
       // Reload game state
       await get().loadGame(currentGameId);
+      set({ turnSubmitting: false });
       return data;
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Failed to submit turn';
-      set({ turnSubmitting: false, error: message });
+      set({
+        turnSubmitting: false,
+        error: message,
+        turnProgress: {
+          stage: 'FAILED',
+          progress: 100,
+          message,
+          timestamp: new Date().toISOString(),
+          error: {
+            message,
+            statusCode: err instanceof ApiError ? err.statusCode : 500,
+          },
+        },
+      });
       return null;
     }
   },
 
+  clearTurnProgress: () => set({ turnProgress: null }),
   clearError: () => set({ error: null }),
   clearCurrentGame: () =>
-    set({ currentGameId: null, gameState: null, lastTurnResponse: null }),
+    set({
+      currentGameId: null,
+      gameState: null,
+      lastTurnResponse: null,
+      turnProgress: null,
+    }),
 }));

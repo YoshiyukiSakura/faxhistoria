@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import {
   INITIAL_COUNTRIES,
   type GameState,
@@ -10,6 +11,11 @@ import {
   type AllianceEvent,
   type TradeDealEvent,
 } from '@faxhistoria/shared';
+
+function deterministicId(prefix: string, ...parts: string[]): string {
+  const hash = createHash('sha256').update(parts.join('|')).digest('hex').slice(0, 8);
+  return `${prefix}_${hash}`;
+}
 
 export function initializeGameState(playerCountry: string, startYear: number): GameState {
   // Build countries with default NEUTRAL relations to all other countries
@@ -56,7 +62,7 @@ export function initializeGameState(playerCountry: string, startYear: number): G
 
 // ── Event Handler Registry (Reducer Pattern) ──
 
-type EventHandler = (state: GameState, event: WorldEvent) => GameState;
+type EventHandler = (state: GameState, event: WorldEvent, eventIndex: number) => GameState;
 
 const eventHandlers: Record<string, EventHandler> = {
   ALLIANCE: handleAlliance,
@@ -76,10 +82,11 @@ const eventHandlers: Record<string, EventHandler> = {
 export function applyEvents(state: GameState, events: WorldEvent[]): GameState {
   let newState = deepCloneState(state);
 
-  for (const event of events) {
+  for (let idx = 0; idx < events.length; idx++) {
+    const event = events[idx];
     const handler = eventHandlers[event.type];
     if (handler) {
-      newState = handler(newState, event);
+      newState = handler(newState, event, idx);
     }
     newState = applyEconomicEffects(newState, event);
 
@@ -101,9 +108,9 @@ export function applyEvents(state: GameState, events: WorldEvent[]): GameState {
 
 // ── Individual Event Handlers ──
 
-function handleAlliance(state: GameState, event: WorldEvent): GameState {
+function handleAlliance(state: GameState, event: WorldEvent, eventIndex: number): GameState {
   const e = event as AllianceEvent;
-  const allianceId = `alliance_${state.currentYear}_${Math.random().toString(36).slice(2, 8)}`;
+  const allianceId = deterministicId('alliance', String(state.currentYear), String(eventIndex), ...e.involvedCountries.sort(), e.allianceName);
 
   state.activeAlliances.push({
     id: allianceId,
@@ -123,7 +130,7 @@ function handleAlliance(state: GameState, event: WorldEvent): GameState {
   return state;
 }
 
-function handleAnnexation(state: GameState, event: WorldEvent): GameState {
+function handleAnnexation(state: GameState, event: WorldEvent, _eventIndex: number): GameState {
   const e = event as AnnexationEvent;
   const annexer = state.countries[e.annexingCountry];
   if (!annexer) return state;
@@ -148,10 +155,10 @@ function handleAnnexation(state: GameState, event: WorldEvent): GameState {
   return state;
 }
 
-function handleTradeDeal(state: GameState, event: WorldEvent): GameState {
+function handleTradeDeal(state: GameState, event: WorldEvent, eventIndex: number): GameState {
   const e = event as TradeDealEvent;
   state.tradeDeals.push({
-    id: `trade_${state.currentYear}_${Math.random().toString(36).slice(2, 8)}`,
+    id: deterministicId('trade', String(state.currentYear), String(eventIndex), ...e.involvedCountries.sort(), e.dealDescription),
     parties: [...e.involvedCountries],
     description: e.dealDescription,
     startYear: state.currentYear,
@@ -167,10 +174,10 @@ function handleTradeDeal(state: GameState, event: WorldEvent): GameState {
   return state;
 }
 
-function handleWar(state: GameState, event: WorldEvent): GameState {
+function handleWar(state: GameState, event: WorldEvent, eventIndex: number): GameState {
   const e = event as WarEvent;
   state.activeWars.push({
-    id: `war_${state.currentYear}_${Math.random().toString(36).slice(2, 8)}`,
+    id: deterministicId('war', String(state.currentYear), String(eventIndex), ...e.aggressorCountries.sort(), ...e.defenderCountries.sort()),
     aggressors: [...e.aggressorCountries],
     defenders: [...e.defenderCountries],
     startYear: state.currentYear,
@@ -186,7 +193,7 @@ function handleWar(state: GameState, event: WorldEvent): GameState {
   return state;
 }
 
-function handlePeace(state: GameState, event: WorldEvent): GameState {
+function handlePeace(state: GameState, event: WorldEvent, _eventIndex: number): GameState {
   const e = event as PeaceEvent;
   state.activeWars = state.activeWars.filter((war) => {
     const warCountries = [...war.aggressors, ...war.defenders];
@@ -204,11 +211,11 @@ function handlePeace(state: GameState, event: WorldEvent): GameState {
   return state;
 }
 
-function handleNarrative(_state: GameState, _event: WorldEvent): GameState {
+function handleNarrative(_state: GameState, _event: WorldEvent, _eventIndex: number): GameState {
   return _state;
 }
 
-function handleEconomicShift(_state: GameState, _event: WorldEvent): GameState {
+function handleEconomicShift(_state: GameState, _event: WorldEvent, _eventIndex: number): GameState {
   return _state;
 }
 

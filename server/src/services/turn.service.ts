@@ -1,5 +1,7 @@
 import { prisma } from '../lib/prisma';
-import type { GameState, WorldEvent, TurnResponse } from '@faxhistoria/shared';
+import { Prisma } from '@prisma/client';
+import type { Game } from '@prisma/client';
+import type { GameState, TurnProgressStage, TurnResponse, WorldEvent } from '@faxhistoria/shared';
 import { runSimulation } from './ai/ai-service';
 import { applyEvents } from './state.service';
 
@@ -13,10 +15,39 @@ interface ProcessTurnInput {
   action: string;
   expectedTurnNumber: number;
   idempotencyKey: string;
+  onProgress?: (update: TurnProgressUpdate) => void;
+}
+
+export interface TurnProgressUpdate {
+  stage: TurnProgressStage;
+  progress: number;
+  message: string;
+  attempt?: number;
+  totalAttempts?: number;
 }
 
 export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse> {
-  const { gameId, userId, action, expectedTurnNumber, idempotencyKey } = input;
+  const {
+    gameId,
+    userId,
+    action,
+    expectedTurnNumber,
+    idempotencyKey,
+    onProgress,
+  } = input;
+  const emitProgress = (update: TurnProgressUpdate) => {
+    if (!onProgress) return;
+    try {
+      onProgress(update);
+    } catch {
+      // Progress channel failure should never break turn processing.
+    }
+  };
+  emitProgress({
+    stage: 'VALIDATING',
+    progress: 8,
+    message: 'Validating action, idempotency key, and quota',
+  });
 
   // ═══ Phase A: Short Transaction - Idempotency + Quota + Validation ═══
   const phaseAResult = await prisma.$transaction(async (tx) => {
@@ -35,21 +66,22 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
         if (existingKey.leaseExpiresAt && existingKey.leaseExpiresAt > now) {
           return { type: 'IN_PROGRESS' as const };
         }
-        // Lease expired - take over: delete the stale key and continue as new
-        await tx.idempotencyKey.delete({
+        // Lease expired — mark as FAILED, don't take over
+        await tx.idempotencyKey.update({
           where: { id: existingKey.id },
+          data: { status: 'FAILED' },
         });
-        // Fall through to create new key below
+        return { type: 'FAILED' as const };
       }
       if (existingKey.status === 'FAILED') {
         return { type: 'FAILED' as const };
       }
     }
 
-    // 2. Lock and validate game
-    const game = await tx.game.findFirst({
-      where: { id: gameId, userId },
-    });
+    // 2. Lock and validate game (FOR UPDATE prevents concurrent turn-number races)
+    const [game] = await tx.$queryRaw<Game[]>(
+      Prisma.sql`SELECT * FROM "Game" WHERE id = ${gameId} AND "userId" = ${userId} FOR UPDATE`
+    );
     if (!game) {
       throw new TurnError('Game not found', 404);
     }
@@ -70,11 +102,13 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
       throw new TurnError('Game token limit exceeded', 429);
     }
 
-    // 5. P0 fix: Only NOW decrement daily quota (after all validations pass)
+    // 5. P0 fix: Atomically check and decrement daily quota with user-row lock
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const user = await tx.user.findUnique({ where: { id: userId } });
+    const [user] = await tx.$queryRaw<{ id: string; dailyApiCalls: number; lastCallDate: Date | null }[]>(
+      Prisma.sql`SELECT id, "dailyApiCalls", "lastCallDate" FROM "User" WHERE id = ${userId} FOR UPDATE`
+    );
     if (!user) throw new TurnError('User not found', 404);
 
     const lastDate = user.lastCallDate ? new Date(user.lastCallDate) : null;
@@ -113,19 +147,44 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
 
   // Handle Phase A results
   if (phaseAResult.type === 'IDEMPOTENT_HIT') {
+    emitProgress({
+      stage: 'COMPLETED',
+      progress: 100,
+      message: 'Reused cached result for this idempotency key',
+    });
     return phaseAResult.cachedResult;
   }
   if (phaseAResult.type === 'IN_PROGRESS') {
+    emitProgress({
+      stage: 'FAILED',
+      progress: 100,
+      message: 'Another request with the same idempotency key is still in progress',
+    });
     throw new TurnError('Request is already being processed', 409);
   }
   if (phaseAResult.type === 'FAILED') {
+    emitProgress({
+      stage: 'FAILED',
+      progress: 100,
+      message: 'This idempotency key is marked failed and cannot be reused',
+    });
     throw new TurnError('This request previously failed. Please use a new idempotency key.', 400);
   }
   if (phaseAResult.type === 'TURN_MISMATCH') {
+    emitProgress({
+      stage: 'FAILED',
+      progress: 100,
+      message: 'Turn number mismatch. Please refresh game state and retry',
+    });
     throw new TurnError('Turn number mismatch', 409, phaseAResult.currentTurnNumber);
   }
 
   const { gameState, totalTokensUsed, turnNumber } = phaseAResult;
+  emitProgress({
+    stage: 'PROCESSING_AI',
+    progress: 32,
+    message: 'Validation complete. Requesting AI simulation',
+  });
 
   // ═══ Phase B: AI Call (No locks, collect ModelRun data in memory) ═══
   let simulationResult;
@@ -139,7 +198,20 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
   };
 
   try {
-    simulationResult = await runSimulation(gameState, action);
+    simulationResult = await runSimulation(gameState, action, {
+      onAiAttempt: (attempt, totalAttempts) => {
+        emitProgress({
+          stage: attempt > 1 ? 'AI_RETRY' : 'PROCESSING_AI',
+          progress: attempt > 1 ? Math.min(40 + attempt * 8, 68) : 45,
+          message:
+            attempt > 1
+              ? `AI output invalid, retrying (${attempt}/${totalAttempts})`
+              : 'AI simulation is generating this turn',
+          attempt,
+          totalAttempts,
+        });
+      },
+    });
     modelRunData = {
       model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
       promptTokens: simulationResult.usage.promptTokens,
@@ -148,10 +220,15 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
       success: true,
       errorMessage: null,
     };
+    emitProgress({
+      stage: 'APPLYING_EVENTS',
+      progress: 74,
+      message: 'AI response received. Applying validated world events',
+    });
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown AI error';
 
-    // Mark idempotency key as FAILED
+    // Mark idempotency key as FAILED (conditional to avoid overwriting if already changed)
     await prisma.idempotencyKey.updateMany({
       where: { gameId, key: idempotencyKey, status: 'IN_PROGRESS' },
       data: { status: 'FAILED' },
@@ -160,6 +237,11 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
     // P0 fix: Rollback daily quota since AI failed
     await rollbackDailyQuota(userId);
 
+    emitProgress({
+      stage: 'FAILED',
+      progress: 100,
+      message: `AI simulation failed: ${errorMsg}`,
+    });
     throw new TurnError(`AI simulation failed: ${errorMsg}`, 500);
   }
 
@@ -170,132 +252,157 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
   ];
 
   // ═══ Phase C: Short Transaction - Apply Events and Commit ═══
-  const turnResponse = await prisma.$transaction(async (tx) => {
-    // Re-lock and re-validate game
-    const game = await tx.game.findFirst({
-      where: { id: gameId },
-    });
-    if (!game) throw new TurnError('Game not found during commit', 500);
+  let turnResponse: TurnResponse;
+  emitProgress({
+    stage: 'PERSISTING',
+    progress: 86,
+    message: 'Persisting turn, events, and snapshots',
+  });
+  try {
+    turnResponse = await prisma.$transaction(async (tx) => {
+      // Re-lock game with FOR UPDATE to prevent concurrent commits
+      const [game] = await tx.$queryRaw<Game[]>(
+        Prisma.sql`SELECT * FROM "Game" WHERE id = ${gameId} FOR UPDATE`
+      );
+      if (!game) throw new TurnError('Game not found during commit', 500);
 
-    // Re-check turn number (prevent advancement during Phase B)
-    if (game.turnNumber !== turnNumber) {
-      // Mark key as FAILED
-      await tx.idempotencyKey.updateMany({
-        where: { gameId, key: idempotencyKey, status: 'IN_PROGRESS' },
-        data: { status: 'FAILED' },
-      });
-      throw new TurnError('Turn was advanced by another request', 409, game.turnNumber);
-    }
+      // Re-check turn number (prevent advancement during Phase B)
+      if (game.turnNumber !== turnNumber) {
+        // Mark key as FAILED (conditional guard prevents stale worker overwrite)
+        await tx.idempotencyKey.updateMany({
+          where: { gameId, key: idempotencyKey, status: 'IN_PROGRESS' },
+          data: { status: 'FAILED' },
+        });
+        throw new TurnError('Turn was advanced by another request', 409, game.turnNumber);
+      }
 
-    // Apply events to state
-    const newState = applyEvents(gameState, allEvents);
-    const newYear = gameState.currentYear + 1;
-    const newTurnNumber = turnNumber + 1;
-    newState.currentYear = newYear;
-    newState.turnNumber = newTurnNumber;
-    newState.worldNarrative = simulationResult.worldNarrative;
+      // Apply events to state
+      const newState = applyEvents(gameState, allEvents);
+      const newYear = gameState.currentYear + 1;
+      const newTurnNumber = turnNumber + 1;
+      newState.currentYear = newYear;
+      newState.turnNumber = newTurnNumber;
+      newState.worldNarrative = simulationResult.worldNarrative;
 
-    // Create Turn record
-    const turn = await tx.turn.create({
-      data: {
-        gameId,
-        turnNumber: newTurnNumber,
-        year: newYear,
-        playerAction: action,
-        status: 'COMPLETED',
-      },
-    });
-
-    // Create TurnEvent records
-    for (let i = 0; i < allEvents.length; i++) {
-      await tx.turnEvent.create({
-        data: {
-          turnId: turn.id,
-          eventType: allEvents[i].type,
-          eventData: allEvents[i] as any,
-          sequence: i,
-        },
-      });
-    }
-
-    // Create ModelRun record
-    await tx.modelRun.create({
-      data: {
-        turnId: turn.id,
-        gameId,
-        ...modelRunData,
-      },
-    });
-
-    // Update game state
-    const newTokensUsed = totalTokensUsed + modelRunData.promptTokens + modelRunData.outputTokens;
-    await tx.game.update({
-      where: { id: gameId },
-      data: {
-        currentState: newState as any,
-        turnNumber: newTurnNumber,
-        currentYear: newYear,
-        totalTokensUsed: newTokensUsed,
-      },
-    });
-
-    // Auto-snapshot every 5 turns
-    if (newTurnNumber % 5 === 0) {
-      await tx.gameSnapshot.create({
+      // Create Turn record
+      const turn = await tx.turn.create({
         data: {
           gameId,
           turnNumber: newTurnNumber,
           year: newYear,
-          state: newState as any,
+          playerAction: action,
+          status: 'COMPLETED',
         },
       });
-    }
 
-    // Build response
-    const response: TurnResponse = {
-      turnId: turn.id,
-      turnNumber: newTurnNumber,
-      year: newYear,
-      events: allEvents.map((e) => ({
-        type: e.type,
-        description: e.description,
-        involvedCountries: e.involvedCountries,
-      })),
-      worldNarrative: simulationResult.worldNarrative,
-      yearSummary: simulationResult.yearSummary,
-      stateVersion: newTurnNumber,
-    };
+      // Create TurnEvent records
+      for (let i = 0; i < allEvents.length; i++) {
+        await tx.turnEvent.create({
+          data: {
+            turnId: turn.id,
+            eventType: allEvents[i].type,
+            eventData: allEvents[i] as any,
+            sequence: i,
+          },
+        });
+      }
 
-    // Update idempotency key with full cached result
-    await tx.idempotencyKey.updateMany({
-      where: { gameId, key: idempotencyKey, status: 'IN_PROGRESS' },
-      data: {
-        status: 'COMPLETED',
+      // Create ModelRun record
+      await tx.modelRun.create({
+        data: {
+          turnId: turn.id,
+          gameId,
+          ...modelRunData,
+        },
+      });
+
+      // Update game state
+      const newTokensUsed = totalTokensUsed + modelRunData.promptTokens + modelRunData.outputTokens;
+      await tx.game.update({
+        where: { id: gameId },
+        data: {
+          currentState: newState as any,
+          turnNumber: newTurnNumber,
+          currentYear: newYear,
+          totalTokensUsed: newTokensUsed,
+        },
+      });
+
+      // Auto-snapshot every 5 turns
+      if (newTurnNumber % 5 === 0) {
+        await tx.gameSnapshot.create({
+          data: {
+            gameId,
+            turnNumber: newTurnNumber,
+            year: newYear,
+            state: newState as any,
+          },
+        });
+      }
+
+      // Build response
+      const response: TurnResponse = {
         turnId: turn.id,
-        cachedResult: response as any,
-      },
+        turnNumber: newTurnNumber,
+        year: newYear,
+        events: allEvents.map((e) => ({
+          type: e.type,
+          description: e.description,
+          involvedCountries: e.involvedCountries,
+        })),
+        worldNarrative: simulationResult.worldNarrative,
+        yearSummary: simulationResult.yearSummary,
+        stateVersion: newTurnNumber,
+      };
+
+      // Update idempotency key with conditional status guard (prevents stale worker overwrite)
+      const { count } = await tx.idempotencyKey.updateMany({
+        where: { gameId, key: idempotencyKey, status: 'IN_PROGRESS' },
+        data: {
+          status: 'COMPLETED',
+          turnId: turn.id,
+          cachedResult: response as any,
+        },
+      });
+      if (count !== 1) {
+        throw new TurnError('Idempotency key was modified by another process', 409);
+      }
+
+      return response;
     });
-
-    return response;
+  } catch (err) {
+    // Mark key as FAILED outside the failed transaction (conditional guard)
+    await prisma.idempotencyKey.updateMany({
+      where: { gameId, key: idempotencyKey, status: 'IN_PROGRESS' },
+      data: { status: 'FAILED' },
+    });
+    await rollbackDailyQuota(userId);
+    emitProgress({
+      stage: 'FAILED',
+      progress: 100,
+      message: err instanceof Error ? err.message : 'Failed while saving turn',
+    });
+    throw err;
+  }
+  emitProgress({
+    stage: 'COMPLETED',
+    progress: 100,
+    message: 'Turn completed successfully',
   });
-
   return turnResponse;
 }
 
 /**
  * P0 fix: Rollback daily quota when AI call fails after quota was decremented.
+ * Single atomic operation that won't go below 0.
  */
 async function rollbackDailyQuota(userId: string): Promise<void> {
   try {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (user && user.dailyApiCalls > 0) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { dailyApiCalls: { decrement: 1 } },
-      });
-    }
+    await prisma.user.updateMany({
+      where: { id: userId, dailyApiCalls: { gt: 0 } },
+      data: { dailyApiCalls: { decrement: 1 } },
+    });
   } catch {
-    // Non-critical: quota rollback failure is logged but doesn't break the flow
     console.error(`Failed to rollback daily quota for user ${userId}`);
   }
 }

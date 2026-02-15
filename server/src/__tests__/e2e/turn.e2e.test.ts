@@ -4,6 +4,7 @@ import {
   registerUser,
   createGame,
   submitTurn,
+  submitTurnWithRetry,
   getGame,
   cleanupTestData,
   prisma,
@@ -20,8 +21,11 @@ const VALID_EVENT_TYPES = [
   'NARRATIVE_FALLBACK',
 ];
 
+test.describe.configure({ mode: 'serial' });
+
 let token: string;
 let gameId: string;
+let turnSubmitted = false;
 
 test.beforeAll(async ({ request }) => {
   const { res } = await registerUser(request);
@@ -37,7 +41,8 @@ test.afterAll(async () => {
 
 test.describe('Turn Processing E2E (with real AI)', () => {
   test('should submit turn with valid action → 200 + TurnResponse', async ({ request }) => {
-    const res = await submitTurn(request, token, gameId, 'Increase military spending by 10%', 0);
+    test.slow();
+    const res = await submitTurnWithRetry(request, token, gameId, 'Increase military spending by 10%', 0);
     expect(res.status()).toBe(200);
 
     const body = await res.json();
@@ -49,9 +54,11 @@ test.describe('Turn Processing E2E (with real AI)', () => {
     expect(body.worldNarrative).toBeDefined();
     expect(body.yearSummary).toBeDefined();
     expect(body.stateVersion).toBe(1);
+    turnSubmitted = true;
   });
 
   test('should have 1-10 events', async ({ request }) => {
+    test.skip(!turnSubmitted, 'Turn submission did not succeed');
     const res = await getGame(request, token, gameId);
     const game = await res.json();
     const latestTurn = game.turns[0];
@@ -60,6 +67,7 @@ test.describe('Turn Processing E2E (with real AI)', () => {
   });
 
   test('should have valid event types', async ({ request }) => {
+    test.skip(!turnSubmitted, 'Turn submission did not succeed');
     const res = await getGame(request, token, gameId);
     const game = await res.json();
     const latestTurn = game.turns[0];
@@ -69,6 +77,7 @@ test.describe('Turn Processing E2E (with real AI)', () => {
   });
 
   test('should have incremented turnNumber and year', async ({ request }) => {
+    test.skip(!turnSubmitted, 'Turn submission did not succeed');
     const res = await getGame(request, token, gameId);
     const game = await res.json();
     expect(game.turnNumber).toBe(1);
@@ -76,6 +85,7 @@ test.describe('Turn Processing E2E (with real AI)', () => {
   });
 
   test('should have created Turn record in DB', async () => {
+    test.skip(!turnSubmitted, 'Turn submission did not succeed');
     const turn = await prisma.turn.findFirst({
       where: { gameId, turnNumber: 1 },
     });
@@ -85,6 +95,7 @@ test.describe('Turn Processing E2E (with real AI)', () => {
   });
 
   test('should have created TurnEvent records', async () => {
+    test.skip(!turnSubmitted, 'Turn submission did not succeed');
     const turn = await prisma.turn.findFirst({
       where: { gameId, turnNumber: 1 },
       include: { events: true },
@@ -93,6 +104,7 @@ test.describe('Turn Processing E2E (with real AI)', () => {
   });
 
   test('should have created ModelRun record with token counts', async () => {
+    test.skip(!turnSubmitted, 'Turn submission did not succeed');
     const modelRun = await prisma.modelRun.findFirst({
       where: { gameId },
     });

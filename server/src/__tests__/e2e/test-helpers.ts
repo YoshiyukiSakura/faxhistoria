@@ -61,7 +61,39 @@ export async function submitTurn(
       'x-idempotency-key': idempotencyKey || uuidv4(),
     },
     data: { action, expectedTurnNumber },
+    timeout: 240_000, // 4 min per AI call
   });
+}
+
+/**
+ * Submit a turn with retry logic for transient AI failures (500s and timeouts).
+ * On 500, the idempotency key is consumed (marked FAILED), so each retry uses a new key.
+ * On timeout, we wait and retry since the AI endpoint may be temporarily overloaded.
+ */
+export async function submitTurnWithRetry(
+  request: APIRequestContext,
+  token: string,
+  gameId: string,
+  action: string,
+  expectedTurnNumber: number,
+  maxRetries = 2,
+) {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await submitTurn(request, token, gameId, action, expectedTurnNumber);
+      if (res.status() !== 500) return res;
+      // On 500 (AI failure), wait and retry with new idempotency key
+    } catch (err) {
+      lastError = err as Error;
+      // Timeout or network error — wait and retry
+    }
+    if (attempt < maxRetries) {
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
+  // Final attempt — let any error propagate
+  return submitTurn(request, token, gameId, action, expectedTurnNumber);
 }
 
 export async function getGame(request: APIRequestContext, token: string, gameId: string) {

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   registerUser,
   createGame,
-  submitTurn,
+  submitTurnWithRetry,
   cleanupTestData,
   prisma,
 } from './test-helpers';
@@ -23,19 +23,22 @@ test.afterAll(async () => {
 
 test.describe('Quota & Rate Limiting E2E', () => {
   test('should increment dailyApiCalls per turn', async ({ request }) => {
+    test.slow(); // AI call can be slow
     const gameRes = await createGame(request, token, { name: 'Test Game Quota 1' });
     const gameId = (await gameRes.json()).id;
 
     const userBefore = await prisma.user.findUnique({ where: { id: userId } });
     const callsBefore = userBefore!.dailyApiCalls;
 
-    await submitTurn(request, token, gameId, 'Invest in education', 0);
+    const res = await submitTurnWithRetry(request, token, gameId, 'Invest in education', 0);
+    expect(res.status()).toBe(200);
 
     const userAfter = await prisma.user.findUnique({ where: { id: userId } });
     expect(userAfter!.dailyApiCalls).toBe(callsBefore + 1);
   });
 
   test('should reset quota on new day', async ({ request }) => {
+    test.slow(); // AI call can be slow
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     yesterday.setHours(12, 0, 0, 0);
@@ -51,7 +54,7 @@ test.describe('Quota & Rate Limiting E2E', () => {
     const gameRes = await createGame(request, token, { name: 'Test Game Quota Reset' });
     const gameId = (await gameRes.json()).id;
 
-    const res = await submitTurn(request, token, gameId, 'Open trade negotiations', 0);
+    const res = await submitTurnWithRetry(request, token, gameId, 'Open trade negotiations', 0);
     expect(res.status()).toBe(200);
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -72,7 +75,7 @@ test.describe('Quota & Rate Limiting E2E', () => {
     const gameRes = await createGame(request, token, { name: 'Test Game Quota Limit' });
     const gameId = (await gameRes.json()).id;
 
-    const res = await submitTurn(request, token, gameId, 'Any action', 0);
+    const res = await submitTurnWithRetry(request, token, gameId, 'Any action', 0);
     expect(res.status()).toBe(429);
   });
 });
