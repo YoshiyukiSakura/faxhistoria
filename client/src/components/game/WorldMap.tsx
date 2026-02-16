@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { geoMercator, geoPath } from 'd3-geo';
-import { zoom as d3zoom } from 'd3-zoom';
+import { zoom as d3zoom, zoomIdentity } from 'd3-zoom';
 import { select } from 'd3-selection';
 import * as topojson from 'topojson-client';
 import { useGameStore } from '../../stores/game-store';
 import { useUIStore } from '../../stores/ui-store';
 import { INITIAL_COUNTRIES, getDefaultCountry } from '@faxhistoria/shared';
 import type { Topology, GeometryCollection } from 'topojson-specification';
+import { Button } from '../common/Button';
 
 const TOPO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
@@ -41,6 +42,10 @@ function getCountryColor(
 
 export function WorldMap() {
   const svgRef = useRef<SVGSVGElement>(null);
+  const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const svgSelectionRef = useRef<d3.Selection<SVGSVGElement, unknown, null, undefined> | null>(
+    null,
+  );
   const gameState = useGameStore((s) => s.gameState);
   const selectCountry = useUIStore((s) => s.selectCountry);
   const selectedCountry = useUIStore((s) => s.selectedCountry);
@@ -86,7 +91,7 @@ export function WorldMap() {
     g.append('rect')
       .attr('width', width)
       .attr('height', height)
-      .attr('fill', '#0F172A');
+      .attr('fill', '#040a17');
 
     // Country paths
     g.selectAll<SVGPathElement, GeoJSON.Feature>('path')
@@ -105,8 +110,13 @@ export function WorldMap() {
         setHovered(name);
         select(this).attr('stroke', '#F8FAFC').attr('stroke-width', 1.5);
       })
-      .on('mouseout', function () {
+      .on('mouseout', function (_event, d) {
+        const name = resolveCountryName(d.properties?.name ?? '');
         setHovered(null);
+        if (name === selectedCountry) {
+          select(this).attr('stroke', '#FBBF24').attr('stroke-width', 2);
+          return;
+        }
         select(this).attr('stroke', '#334155').attr('stroke-width', 0.5);
       })
       .on('click', (_event, d) => {
@@ -129,21 +139,65 @@ export function WorldMap() {
         g.attr('transform', event.transform.toString());
       });
 
+    zoomBehaviorRef.current = zoomBehavior;
+    svgSelectionRef.current = svg;
     svg.call(zoomBehavior);
   }, [topoData, gameState?.countries, selectedCountry, selectCountry]);
+
+  const updateZoom = (direction: 'in' | 'out') => {
+    if (!svgSelectionRef.current || !zoomBehaviorRef.current) return;
+    const factor = direction === 'in' ? 1.25 : 0.8;
+    svgSelectionRef.current
+      .transition()
+      .duration(180)
+      .call(zoomBehaviorRef.current.scaleBy, factor);
+  };
+
+  const resetZoom = () => {
+    if (!svgSelectionRef.current || !zoomBehaviorRef.current) return;
+    svgSelectionRef.current
+      .transition()
+      .duration(220)
+      .call(zoomBehaviorRef.current.transform, zoomIdentity);
+  };
 
   return (
     <div className="relative h-full w-full">
       <svg
         ref={svgRef}
         className="h-full w-full"
-        style={{ background: '#0F172A' }}
+        style={{ background: '#040a17' }}
       />
       {hovered && (
-        <div className="pointer-events-none absolute left-4 top-4 rounded-lg bg-surface/90 border border-border px-3 py-2 text-sm text-text-main">
+        <div className="app-panel-soft pointer-events-none absolute left-4 top-4 px-3 py-2 text-sm text-text-main">
           {hovered}
         </div>
       )}
+      <div className="app-panel absolute bottom-4 right-4 flex flex-col gap-2 p-2">
+        <Button
+          variant="secondary"
+          className="h-8 w-8 px-0 py-0 text-sm"
+          onClick={() => updateZoom('in')}
+          aria-label="Zoom in"
+        >
+          +
+        </Button>
+        <Button
+          variant="secondary"
+          className="h-8 w-8 px-0 py-0 text-sm"
+          onClick={() => updateZoom('out')}
+          aria-label="Zoom out"
+        >
+          -
+        </Button>
+        <Button
+          variant="secondary"
+          className="px-2 py-1 text-[11px]"
+          onClick={resetZoom}
+        >
+          Reset
+        </Button>
+      </div>
     </div>
   );
 }

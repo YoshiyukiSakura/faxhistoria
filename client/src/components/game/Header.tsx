@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '../../stores/game-store';
+import { appTheme } from '../../theme/theme';
 import { Button } from '../common/Button';
 
 export function Header() {
@@ -19,8 +20,8 @@ export function Header() {
     activeTurnRecord?.year ?? gameState.currentYear - (gameState.turnNumber - activeTurn);
 
   return (
-    <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
-      <div className="flex items-center gap-4">
+    <header className={`${appTheme.pageHeader} flex flex-wrap items-start justify-between gap-3 px-4 py-3 sm:items-center`}>
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
         <Button
           variant="secondary"
           className="text-xs px-2 py-1"
@@ -39,7 +40,7 @@ export function Header() {
         </div>
       </div>
 
-      <div className="flex items-center gap-6 text-sm">
+      <div className="flex flex-wrap items-center gap-3 text-sm sm:justify-end sm:gap-6">
         <div className="text-text-secondary">
           Year{' '}
           <span className="font-semibold text-text-main">

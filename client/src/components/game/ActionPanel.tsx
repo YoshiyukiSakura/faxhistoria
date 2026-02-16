@@ -14,6 +14,36 @@ const STAGE_LABEL: Record<string, string> = {
   FAILED: 'Failed',
 };
 
+interface ActionTemplate {
+  id: string;
+  label: string;
+  prompt: string;
+}
+
+interface ReadinessCheck {
+  label: string;
+  passed: boolean;
+}
+
+function computeReadinessChecks(text: string): ReadinessCheck[] {
+  const normalized = text.trim();
+  const hasClearObjective = normalized.length >= 30;
+  const hasTargetOrPartner =
+    /\b(with|against|toward|between|target|partner|ally|neighbor|rival)\b/i.test(
+      normalized,
+    );
+  const hasExpectedOutcome =
+    /\b(so that|in order to|to reduce|to increase|to secure|to stabilize|to prevent|to gain)\b/i.test(
+      normalized,
+    );
+
+  return [
+    { label: 'Clear objective statement', passed: hasClearObjective },
+    { label: 'Specific target or partner', passed: hasTargetOrPartner },
+    { label: 'Expected outcome included', passed: hasExpectedOutcome },
+  ];
+}
+
 export function ActionPanel() {
   const [action, setAction] = useState('');
   const {
@@ -37,6 +67,37 @@ export function ActionPanel() {
     () => gameTurns.find((turn) => turn.turnNumber === activeTurn),
     [gameTurns, activeTurn],
   );
+  const playerCountryName =
+    gameState?.countries[gameState.playerCountry]?.displayName ??
+    gameState?.playerCountry ??
+    'our country';
+  const actionTemplates = useMemo<ActionTemplate[]>(
+    () => [
+      {
+        id: 'diplomacy',
+        label: 'Diplomatic Push',
+        prompt: `Launch a diplomatic initiative led by ${playerCountryName}, proposing a regional de-escalation channel and confidence-building measures.`,
+      },
+      {
+        id: 'economic',
+        label: 'Economic Package',
+        prompt: `Announce a targeted economic package with one partner country, including trade access and joint infrastructure incentives tied to stability goals.`,
+      },
+      {
+        id: 'security',
+        label: 'Security Posture',
+        prompt: `Adjust military readiness around one hotspot while simultaneously opening a direct communication line to prevent accidental escalation.`,
+      },
+      {
+        id: 'domestic',
+        label: 'Domestic Reform',
+        prompt: `Prioritize a domestic reform plan that improves stability and economic resilience before expanding external commitments.`,
+      },
+    ],
+    [playerCountryName],
+  );
+  const readinessChecks = useMemo(() => computeReadinessChecks(action), [action]);
+  const readinessPassed = readinessChecks.filter((check) => check.passed).length;
 
   const handleSubmit = async () => {
     if (viewingHistory) {
@@ -53,13 +114,20 @@ export function ActionPanel() {
       setAction('');
     }
   };
+  const applyTemplate = (template: string) => {
+    if (turnSubmitting) return;
+    const nextAction = action.trim()
+      ? `${action.trimEnd()}\n\n${template}`
+      : template;
+    setAction(nextAction);
+  };
 
   const showingFinalEvents = turnLiveEvents.length > 0;
   const draftCount = turnDraftEvents.length;
   const finalCount = turnLiveEvents.length;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+    <div className="app-panel flex flex-col gap-3 p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-text-main">
           {viewingHistory ? 'Submitted Action' : 'Your Action'}
@@ -73,7 +141,7 @@ export function ActionPanel() {
 
       {viewingHistory ? (
         <>
-          <div className="rounded-lg border border-border bg-bg px-3 py-3">
+          <div className="app-panel-soft px-3 py-3">
             <p className="mb-2 text-xs text-text-secondary">
               {viewedTurn ? `Year ${viewedTurn.year}` : 'Historical turn'}
             </p>
@@ -82,7 +150,7 @@ export function ActionPanel() {
                 'No submitted action was found for this turn.'}
             </p>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-bg px-3 py-2">
+          <div className="app-panel-soft flex items-center justify-between gap-3 px-3 py-2">
             <p className="text-xs text-text-secondary">
               You are viewing a historical turn. Jump back to the current turn to
               submit your next action.
@@ -98,6 +166,24 @@ export function ActionPanel() {
         </>
       ) : (
         <>
+          <div className="app-panel-soft px-3 py-3">
+            <p className="mb-2 text-xs font-medium text-text-main">
+              Quick Action Starters
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {actionTemplates.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  disabled={turnSubmitting}
+                  onClick={() => applyTemplate(template.prompt)}
+                  className="cursor-pointer rounded-md border border-border bg-surface/65 px-2 py-1 text-[11px] text-text-secondary transition-colors hover:border-primary hover:text-text-main disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {template.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <textarea
             value={action}
             onChange={(e) => {
@@ -109,14 +195,43 @@ export function ActionPanel() {
               }
               setAction(e.target.value);
             }}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                event.preventDefault();
+                void handleSubmit();
+              }
+            }}
             placeholder="Describe your diplomatic, military, or economic action..."
             maxLength={2000}
             rows={4}
             disabled={turnSubmitting}
-            className="w-full resize-none rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text-main outline-none focus:border-primary"
+            className="app-input resize-none text-sm"
           />
+          <div className="app-panel-soft px-3 py-2">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-medium text-text-main">Action Readiness</p>
+              <span className="text-[11px] text-text-secondary">
+                {readinessPassed}/{readinessChecks.length}
+              </span>
+            </div>
+            <div className="space-y-1">
+              {readinessChecks.map((check) => (
+                <p key={check.label} className="text-[11px] text-text-secondary">
+                  <span
+                    className={`mr-2 inline-block h-1.5 w-1.5 rounded-full ${
+                      check.passed ? 'bg-success' : 'bg-border'
+                    }`}
+                  />
+                  {check.label}
+                </p>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-text-secondary">
+              Shortcut: Press Cmd/Ctrl + Enter to submit quickly.
+            </p>
+          </div>
           {(turnSubmitting || turnProgress) && (
-            <div className="rounded-lg border border-border bg-bg px-3 py-2">
+            <div className="app-panel-soft px-3 py-2">
               <div className="mb-2 flex items-center justify-between text-xs">
                 <span className="font-medium text-text-main">
                   {STAGE_LABEL[turnProgress?.stage ?? 'VALIDATING'] ?? 'Processing'}
@@ -131,7 +246,7 @@ export function ActionPanel() {
               <p className="text-xs text-text-secondary">
                 {turnProgress?.message ?? 'Submitting turn...'}
               </p>
-              <div className="mt-3 rounded-md border border-border bg-surface p-2">
+              <div className="mt-3 rounded-md border border-border bg-surface/70 p-2">
                 <div className="mb-2 flex items-center justify-between text-[11px] text-text-secondary">
                   <span>
                     {showingFinalEvents ? 'Generated Events' : 'Live Event Drafts'}
@@ -148,7 +263,7 @@ export function ActionPanel() {
                       ? turnLiveEvents.map((event) => (
                           <div
                             key={event.id}
-                            className="rounded-md border border-border bg-bg px-2 py-2"
+                            className="rounded-md border border-border bg-bg/70 px-2 py-2"
                           >
                             <div className="mb-1 flex items-center gap-2 text-[11px] text-text-secondary">
                               <span
@@ -171,7 +286,7 @@ export function ActionPanel() {
                       : turnDraftEvents.map((event) => (
                           <div
                             key={event.id}
-                            className="rounded-md border border-border bg-bg px-2 py-2"
+                            className="rounded-md border border-border bg-bg/70 px-2 py-2"
                           >
                             <div className="mb-1 flex items-center gap-2 text-[11px] text-text-secondary">
                               <span
@@ -205,7 +320,11 @@ export function ActionPanel() {
             <span className="text-xs text-text-secondary">
               {action.length}/2000
             </span>
-            <Button onClick={handleSubmit} loading={turnSubmitting}>
+            <Button
+              onClick={handleSubmit}
+              loading={turnSubmitting}
+              disabled={!action.trim()}
+            >
               {turnSubmitting ? 'Generating Events...' : 'Submit Turn'}
             </Button>
           </div>

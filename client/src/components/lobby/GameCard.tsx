@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { INITIAL_COUNTRIES } from '@faxhistoria/shared';
+import { appTheme } from '../../theme/theme';
 
 interface GameCardProps {
   id: string;
@@ -22,7 +23,7 @@ export function GameCard({
   return (
     <div
       onClick={() => navigate(`/game/${id}`)}
-      className="cursor-pointer rounded-xl border border-border bg-surface p-5 transition-colors hover:bg-surface-hover"
+      className={`${appTheme.card} cursor-pointer p-5`}
     >
       <h3 className="mb-2 text-lg font-semibold text-text-main">{name}</h3>
       <div className="flex items-center gap-2 mb-2">

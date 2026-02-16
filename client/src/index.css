@@ -2,22 +2,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0F172A;
-  --color-surface: #1E293B;
-  --color-surface-hover: #334155;
-  --color-primary: #3B82F6;
-  --color-primary-hover: #2563EB;
-  --color-success: #22C55E;
-  --color-warning: #F59E0B;
-  --color-danger: #EF4444;
-  --color-text-main: #F8FAFC;
-  --color-text-secondary: #94A3B8;
-  --color-border: #334155;
+  --color-bg: #040a17;
+  --color-surface: #0f1b36;
+  --color-surface-hover: #1a2b4f;
+  --color-primary: #38bdf8;
+  --color-primary-hover: #0ea5e9;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-text-main: #e2ebff;
+  --color-text-secondary: #9fb0cc;
+  --color-border: #244362;
 }
 
 :root {
   --font-body: "Manrope", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Avenir Next", "Segoe UI", sans-serif;
   --font-display: "Space Grotesk", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "Trebuchet MS", sans-serif;
+  --app-shadow-lg: 0 24px 60px rgba(3, 8, 23, 0.62);
+  --app-shadow-md: 0 16px 36px rgba(3, 8, 23, 0.48);
 }
 
 body {
@@ -30,6 +32,106 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+.app-page-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #040915;
+  color: var(--color-text-main);
+}
+
+.app-page-bg {
+  position: absolute;
+  inset: -20% -8%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 22%, rgba(34, 211, 238, 0.2) 0%, transparent 44%),
+    radial-gradient(circle at 86% 18%, rgba(251, 191, 36, 0.16) 0%, transparent 40%),
+    radial-gradient(circle at 50% 74%, rgba(56, 189, 248, 0.14) 0%, transparent 50%),
+    linear-gradient(180deg, #030711 0%, #040c1d 46%, #040812 100%);
+}
+
+.app-page-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: radial-gradient(circle at 50% 30%, black 34%, transparent 82%);
+}
+
+.app-page-content {
+  position: relative;
+  z-index: 10;
+}
+
+.app-page-header {
+  border-bottom: 1px solid rgba(159, 176, 204, 0.2);
+  background:
+    linear-gradient(90deg, rgba(15, 27, 54, 0.72), rgba(8, 17, 36, 0.78));
+  backdrop-filter: blur(12px);
+}
+
+.app-panel {
+  border: 1px solid rgba(159, 176, 204, 0.2);
+  border-radius: 1rem;
+  background:
+    linear-gradient(160deg, rgba(17, 30, 57, 0.88), rgba(10, 19, 38, 0.78));
+  box-shadow: var(--app-shadow-md);
+  backdrop-filter: blur(12px);
+}
+
+.app-panel-soft {
+  border: 1px solid rgba(159, 176, 204, 0.16);
+  border-radius: 0.9rem;
+  background: rgba(15, 27, 54, 0.55);
+  backdrop-filter: blur(8px);
+}
+
+.app-card {
+  border: 1px solid rgba(159, 176, 204, 0.16);
+  border-radius: 0.9rem;
+  background: rgba(15, 27, 54, 0.62);
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.app-card:hover {
+  border-color: rgba(125, 211, 252, 0.42);
+  background: rgba(18, 33, 64, 0.8);
+  transform: translateY(-1px);
+}
+
+.app-input {
+  width: 100%;
+  border: 1px solid rgba(159, 176, 204, 0.24);
+  border-radius: 0.75rem;
+  background: rgba(6, 12, 27, 0.72);
+  color: var(--color-text-main);
+  padding: 0.65rem 0.85rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.app-input:focus {
+  border-color: rgba(56, 189, 248, 0.7);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+}
+
+.app-input::placeholder {
+  color: rgba(159, 176, 204, 0.65);
+}
+
+.app-section-title {
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(165, 243, 252, 0.9);
 }
 
 .home-brand,
@@ -246,12 +348,12 @@ body {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #1E293B;
+  background: #101d38;
 }
 ::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #325373;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748B;
+  background: #4f7398;
 }

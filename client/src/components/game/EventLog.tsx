@@ -24,7 +24,7 @@ export function EventLog() {
   );
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-surface">
+    <div className="app-panel flex flex-col">
       <h3 className="border-b border-border px-4 py-3 text-sm font-semibold text-text-main">
         {viewingHistory ? `Turn ${activeTurn} Events` : 'Recent Events'}
       </h3>
@@ -39,7 +39,7 @@ export function EventLog() {
               {historicalEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="rounded-lg px-3 py-2 text-sm hover:bg-surface-hover"
+                  className="rounded-lg px-3 py-2 text-sm hover:bg-surface-hover/70"
                 >
                   <div className="mb-1 flex items-center gap-2">
                     <span
@@ -72,7 +72,7 @@ export function EventLog() {
             {[...recentEvents].reverse().map((event, i) => (
               <div
                 key={`${event.turnNumber}-${i}`}
-                className="rounded-lg px-3 py-2 text-sm hover:bg-surface-hover"
+                className="rounded-lg px-3 py-2 text-sm hover:bg-surface-hover/70"
               >
                 <div className="mb-1 flex items-center gap-2">
                   <span
