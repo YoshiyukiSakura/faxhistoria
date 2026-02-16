@@ -131,6 +131,11 @@ export const TurnProgressEventSchema = z.object({
   }).optional(),
 });
 
+// ── Image Proxy Schemas ──
+export const ImageProxyQuerySchema = z.object({
+  url: z.string().url().max(2048),
+});
+
 // ── Error Response ──
 export const ErrorResponseSchema = z.object({
   error: z.string(),
@@ -154,4 +159,5 @@ export type TurnProgressStage = z.infer<typeof TurnProgressStageSchema>;
 export type TurnStreamEvent = z.infer<typeof TurnStreamEventSchema>;
 export type TurnDraftEvent = z.infer<typeof TurnDraftEventSchema>;
 export type TurnProgressEvent = z.infer<typeof TurnProgressEventSchema>;
+export type ImageProxyQuery = z.infer<typeof ImageProxyQuerySchema>;
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>;

@@ -7,6 +7,7 @@ import { authPlugin } from './plugins/auth';
 import { authRoutes } from './routes/auth';
 import { adminRoutes } from './routes/admin';
 import { gameRoutes } from './routes/game';
+import { imageRoutes } from './routes/image';
 import { turnRoutes } from './routes/turn';
 
 const PORT = Number(process.env.PORT) || 40010;
@@ -44,6 +45,7 @@ async function main() {
   await fastify.register(authRoutes);
   await fastify.register(adminRoutes);
   await fastify.register(gameRoutes);
+  await fastify.register(imageRoutes);
   await fastify.register(turnRoutes);
 
   // Health check

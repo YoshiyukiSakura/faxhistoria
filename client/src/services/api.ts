@@ -2,6 +2,18 @@ import type { AdminStatsResponse, TurnProgressEvent, TurnResponse } from '@faxhi
 
 const BASE_URL = '/api';
 
+export function toSafeImageUrl(imageUrl?: string): string | undefined {
+  const value = imageUrl?.trim();
+  if (!value) return undefined;
+  if (typeof window === 'undefined') return value;
+
+  if (window.location.protocol === 'https:' && /^http:\/\//i.test(value)) {
+    return `${BASE_URL}/images/proxy?url=${encodeURIComponent(value)}`;
+  }
+
+  return value;
+}
+
 class ApiError extends Error {
   constructor(
     public statusCode: number,

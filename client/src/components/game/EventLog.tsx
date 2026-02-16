@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../../stores/game-store';
 import { EVENT_TYPE_COLORS } from '@faxhistoria/shared';
+import { toSafeImageUrl } from '../../services/api';
 
 interface DisplayEvent {
   id: string;
@@ -55,6 +56,10 @@ export function EventLog() {
     }));
   }, [historicalEvents, recentEvents, viewedTurn, viewingHistory]);
   const activeEvent = displayEvents[activeImageIndex] ?? null;
+  const activeImageUrl = useMemo(
+    () => toSafeImageUrl(activeEvent?.imageUrl),
+    [activeEvent?.imageUrl],
+  );
 
   useEffect(() => {
     if (displayEvents.length === 0) {
@@ -81,9 +86,9 @@ export function EventLog() {
               </p>
             </div>
             <div className="relative mb-2 aspect-[4/3] overflow-hidden rounded-md border border-border bg-bg">
-              {activeEvent?.imageUrl ? (
+              {activeImageUrl ? (
                 <img
-                  src={activeEvent.imageUrl}
+                  src={activeImageUrl}
                   alt={activeEvent.description}
                   className="h-full w-full object-cover"
                   loading="lazy"

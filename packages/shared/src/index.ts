@@ -38,6 +38,7 @@ export {
   TurnStreamEventSchema,
   TurnDraftEventSchema,
   TurnProgressEventSchema,
+  ImageProxyQuerySchema,
   ErrorResponseSchema,
 } from './schemas/api';
 
@@ -81,6 +82,7 @@ export type {
   TurnStreamEvent,
   TurnDraftEvent,
   TurnProgressEvent,
+  ImageProxyQuery,
   ErrorResponse,
 } from './schemas/api';
 
