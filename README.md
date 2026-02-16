@@ -50,10 +50,19 @@ VITE_SITE_URL="https://your-domain.example"
 NODE_ENV=development
 DAILY_API_LIMIT=50
 GAME_TOKEN_LIMIT=500000
+EVENT_IMAGE_ENABLED=true
+EVENT_IMAGE_ENDPOINT="http://208.64.254.167:8013/api/generate"
+EVENT_IMAGE_PUBLIC_BASE_URL="http://208.64.254.167:8013"
+EVENT_IMAGE_PUBLIC_PATH_PREFIX="/generated"
+EVENT_IMAGE_SIZE="384x384"
+EVENT_IMAGE_TIMEOUT_MS=15000
+EVENT_IMAGE_DETERMINISTIC_SEED=true
+EVENT_IMAGE_SEED_SALT="faxhistoria-event-image-v1"
 ```
 
 说明：
 - `DEEPSEEK_API_KEY` 不配置时，提交回合会失败。
+- 事件生图为可选能力：`EVENT_IMAGE_ENDPOINT` 不配置或 `EVENT_IMAGE_ENABLED=false` 时，会自动跳过生图，不影响回合提交。
 - `VITE_SITE_URL` 用于生成 `canonical`、`robots.txt`、`sitemap.xml`，生产环境请配置为站点主域名（如 `https://faxhistoria.vercel.app`）。
 - 默认前端端口 `40011`，并通过 Vite 代理转发 `/api` 到后端 `40010`。
 

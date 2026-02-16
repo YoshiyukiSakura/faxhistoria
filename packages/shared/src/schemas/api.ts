@@ -77,6 +77,8 @@ export const TurnResponseSchema = z.object({
     type: z.string(),
     description: z.string(),
     involvedCountries: z.array(z.string()),
+    imageSeed: z.number().int().nonnegative().optional(),
+    imageUrl: z.string().max(2048).optional(),
   })),
   worldNarrative: z.string(),
   yearSummary: z.string(),
@@ -100,6 +102,8 @@ export const TurnStreamEventSchema = z.object({
   type: z.string(),
   description: z.string(),
   involvedCountries: z.array(z.string()),
+  imageSeed: z.number().int().nonnegative().optional(),
+  imageUrl: z.string().max(2048).optional(),
 });
 
 export const TurnDraftEventSchema = z.object({

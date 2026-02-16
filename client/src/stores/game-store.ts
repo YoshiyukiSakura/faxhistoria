@@ -8,6 +8,8 @@ type PersistedTurnEventData = {
   type?: string;
   description?: string;
   involvedCountries?: string[];
+  imageSeed?: number;
+  imageUrl?: string;
 };
 
 export interface GameTurnEvent {

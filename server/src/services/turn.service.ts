@@ -10,6 +10,7 @@ import type {
   WorldEvent,
 } from '@faxhistoria/shared';
 import { runSimulation } from './ai/ai-service';
+import { enrichEventsWithGeneratedImages } from './ai/event-image.service';
 import { applyEvents } from './state.service';
 
 const DAILY_API_LIMIT = parseInt(process.env.DAILY_API_LIMIT || '50', 10);
@@ -266,10 +267,38 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
   }
 
   // Combine approved events and degraded fallbacks
-  const allEvents: WorldEvent[] = [
+  let allEvents: WorldEvent[] = [
     ...simulationResult.arbiterResult.approved,
     ...simulationResult.arbiterResult.degraded.map((d) => d.fallback),
   ];
+
+  if (allEvents.length > 0) {
+    emitProgress({
+      stage: 'APPLYING_EVENTS',
+      progress: 75,
+      message: 'Generating event illustrations',
+    });
+
+    allEvents = await enrichEventsWithGeneratedImages(
+      allEvents,
+      {
+        year: gameState.currentYear + 1,
+        playerAction: action,
+        gameId,
+        turnNumber: turnNumber + 1,
+      },
+      {
+        onProgress: ({ sequence, total, success, skipped, seed }) => {
+          const status = skipped ? 'skipped' : success ? 'ready' : 'failed';
+          emitProgress({
+            stage: 'APPLYING_EVENTS',
+            progress: Math.min(83, 75 + Math.round((sequence / total) * 8)),
+            message: `Illustration ${sequence}/${total} ${status} (seed ${seed})`,
+          });
+        },
+      },
+    );
+  }
 
   const totalEvents = allEvents.length;
   if (totalEvents === 0) {
@@ -293,6 +322,8 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
           type: event.type,
           description: event.description,
           involvedCountries: event.involvedCountries,
+          ...(event.imageSeed !== undefined ? { imageSeed: event.imageSeed } : {}),
+          ...(event.imageUrl ? { imageUrl: event.imageUrl } : {}),
         },
       });
     }
@@ -396,6 +427,8 @@ export async function processTurn(input: ProcessTurnInput): Promise<TurnResponse
           type: e.type,
           description: e.description,
           involvedCountries: e.involvedCountries,
+          ...(e.imageSeed !== undefined ? { imageSeed: e.imageSeed } : {}),
+          ...(e.imageUrl ? { imageUrl: e.imageUrl } : {}),
         })),
         worldNarrative: simulationResult.worldNarrative,
         yearSummary: simulationResult.yearSummary,

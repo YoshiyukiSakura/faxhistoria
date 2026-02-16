@@ -27,6 +27,9 @@ const BaseEventFields = {
   description: z.string().max(500),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   economicEffects: z.array(EconomicEffectSchema).default([]),
+  imagePrompt: z.string().max(1000).optional(),
+  imageSeed: z.number().int().nonnegative().optional(),
+  imageUrl: z.string().max(2048).optional(),
 };
 
 // ── Specific Event Schemas ──

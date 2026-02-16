@@ -43,6 +43,8 @@ export const RecentEventSummarySchema = z.object({
   year: z.number(),
   description: z.string(),
   eventType: z.string(),
+  imageSeed: z.number().int().nonnegative().optional(),
+  imageUrl: z.string().max(2048).optional(),
 });
 
 // ── Full Game State ──

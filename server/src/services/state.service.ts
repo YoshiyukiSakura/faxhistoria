@@ -95,6 +95,8 @@ export function applyEvents(state: GameState, events: WorldEvent[]): GameState {
       year: newState.currentYear,
       description: event.description,
       eventType: event.type,
+      ...(event.imageSeed !== undefined ? { imageSeed: event.imageSeed } : {}),
+      ...(event.imageUrl ? { imageUrl: event.imageUrl } : {}),
     });
   }
 
