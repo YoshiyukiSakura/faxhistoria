@@ -4,6 +4,36 @@ import type { GameState, TurnProgressEvent, TurnResponse } from '@faxhistoria/sh
 
 type LiveTurnEvent = NonNullable<TurnProgressEvent['liveEvent']>;
 type LiveDraftEvent = NonNullable<TurnProgressEvent['liveDraftEvent']>;
+type PersistedTurnEventData = {
+  type?: string;
+  description?: string;
+  involvedCountries?: string[];
+};
+
+export interface GameTurnEvent {
+  id: string;
+  eventType: string;
+  eventData: PersistedTurnEventData;
+  sequence: number;
+  createdAt: string;
+}
+
+export interface GameTurnSummary {
+  id: string;
+  turnNumber: number;
+  year: number;
+  playerAction: string;
+  createdAt: string;
+  events: GameTurnEvent[];
+}
+
+interface GameDetailResponse {
+  id: string;
+  turnNumber: number;
+  currentYear: number;
+  currentState: GameState;
+  turns: GameTurnSummary[];
+}
 
 interface GameSummary {
   id: string;
@@ -22,6 +52,8 @@ interface GameStoreState {
   // Current game
   currentGameId: string | null;
   gameState: GameState | null;
+  gameTurns: GameTurnSummary[];
+  viewedTurnNumber: number | null;
   gameLoading: boolean;
 
   // Turn
@@ -38,6 +70,8 @@ interface GameStoreState {
   createGame: (name: string, playerCountry: string, startYear?: number) => Promise<string | null>;
   loadGame: (gameId: string) => Promise<void>;
   submitTurn: (action: string) => Promise<TurnResponse | null>;
+  setViewedTurnNumber: (turnNumber: number) => void;
+  jumpToCurrentTurn: () => void;
   clearTurnProgress: () => void;
   clearError: () => void;
   clearCurrentGame: () => void;
@@ -48,6 +82,8 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
   gamesLoading: false,
   currentGameId: null,
   gameState: null,
+  gameTurns: [],
+  viewedTurnNumber: null,
   gameLoading: false,
   turnSubmitting: false,
   turnProgress: null,
@@ -87,8 +123,16 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
   loadGame: async (gameId) => {
     set({ gameLoading: true, error: null, currentGameId: gameId });
     try {
-      const data = await api.get<{ currentState: GameState }>(`/games/${gameId}`);
-      set({ gameState: data.currentState as GameState, gameLoading: false });
+      const data = await api.get<GameDetailResponse>(`/games/${gameId}`);
+      const sortedTurns = [...(data.turns ?? [])].sort(
+        (a, b) => b.turnNumber - a.turnNumber,
+      );
+      set({
+        gameState: data.currentState as GameState,
+        gameTurns: sortedTurns,
+        viewedTurnNumber: data.currentState.turnNumber,
+        gameLoading: false,
+      });
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Failed to load game';
       set({ gameLoading: false, error: message });
@@ -188,12 +232,33 @@ export const useGameStore = create<GameStoreState>()((set, get) => ({
     }
   },
 
+  setViewedTurnNumber: (turnNumber) =>
+    set((state) => {
+      const currentTurn = state.gameState?.turnNumber;
+      if (currentTurn === undefined) return {};
+      const availableTurns = new Set([
+        0,
+        currentTurn,
+        ...state.gameTurns.map((turn) => turn.turnNumber),
+      ]);
+      if (!availableTurns.has(turnNumber)) return {};
+      return { viewedTurnNumber: turnNumber };
+    }),
+
+  jumpToCurrentTurn: () =>
+    set((state) => {
+      if (!state.gameState) return {};
+      return { viewedTurnNumber: state.gameState.turnNumber };
+    }),
+
   clearTurnProgress: () => set({ turnProgress: null, turnLiveEvents: [], turnDraftEvents: [] }),
   clearError: () => set({ error: null }),
   clearCurrentGame: () =>
     set({
       currentGameId: null,
       gameState: null,
+      gameTurns: [],
+      viewedTurnNumber: null,
       lastTurnResponse: null,
       turnProgress: null,
       turnLiveEvents: [],

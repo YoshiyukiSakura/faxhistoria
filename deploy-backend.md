@@ -20,6 +20,7 @@ cd /path/to/faxhistoria
 
 # 1) 测试与构建
 npm run test
+npm run test:e2e:ui -w server
 npm run build
 
 # 2) 提交并推送

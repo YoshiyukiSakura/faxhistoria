@@ -4,11 +4,19 @@ import { Button } from '../common/Button';
 
 export function Header() {
   const gameState = useGameStore((s) => s.gameState);
+  const gameTurns = useGameStore((s) => s.gameTurns);
+  const viewedTurnNumber = useGameStore((s) => s.viewedTurnNumber);
+  const jumpToCurrentTurn = useGameStore((s) => s.jumpToCurrentTurn);
   const navigate = useNavigate();
 
   if (!gameState) return null;
 
   const playerCountry = gameState.countries[gameState.playerCountry];
+  const activeTurn = viewedTurnNumber ?? gameState.turnNumber;
+  const viewingHistory = activeTurn < gameState.turnNumber;
+  const activeTurnRecord = gameTurns.find((turn) => turn.turnNumber === activeTurn);
+  const activeYear =
+    activeTurnRecord?.year ?? gameState.currentYear - (gameState.turnNumber - activeTurn);
 
   return (
     <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3">
@@ -35,15 +43,24 @@ export function Header() {
         <div className="text-text-secondary">
           Year{' '}
           <span className="font-semibold text-text-main">
-            {gameState.currentYear}
+            {activeYear}
           </span>
         </div>
         <div className="text-text-secondary">
           Turn{' '}
           <span className="font-semibold text-text-main">
-            {gameState.turnNumber}
+            {activeTurn}
           </span>
         </div>
+        {viewingHistory ? (
+          <Button
+            variant="secondary"
+            className="px-3 py-1 text-xs"
+            onClick={jumpToCurrentTurn}
+          >
+            Current Turn
+          </Button>
+        ) : null}
         {playerCountry && (
           <>
             <div className="text-text-secondary">
