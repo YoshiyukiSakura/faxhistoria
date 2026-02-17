@@ -242,21 +242,21 @@ export function GameUI() {
                 <WorldMap />
               </div>
 
-              <aside
-                ref={historySectionRef}
-                className="order-2 flex min-h-0 flex-col gap-3 xl:order-1 xl:h-full xl:overflow-y-auto xl:pr-1"
-              >
+              <aside className="order-2 flex min-h-0 flex-col gap-3 xl:order-1 xl:h-full xl:overflow-y-auto xl:pr-1">
                 <div className="min-h-[250px] xl:min-h-0 xl:flex-[0.95]">
                   <TurnTimelinePanel />
                 </div>
-                <div className="min-h-[340px] xl:min-h-0 xl:flex-[1.35]">
-                  <EventLog />
+                <div ref={actionSectionRef} className="min-h-[320px] xl:min-h-0 xl:flex-[1.35]">
+                  <ActionPanel />
                 </div>
               </aside>
 
-              <aside className="order-3 flex min-h-0 flex-col gap-3 xl:h-full xl:overflow-visible xl:pl-1">
-                <div ref={actionSectionRef} className="min-h-[320px] xl:min-h-0 xl:flex-1">
-                  <ActionPanel />
+              <aside
+                ref={historySectionRef}
+                className="order-3 flex min-h-0 flex-col gap-3 xl:h-full xl:overflow-visible xl:pl-1"
+              >
+                <div className="min-h-[340px] xl:min-h-0 xl:flex-1">
+                  <EventLog />
                 </div>
 
                 <div ref={worldSectionRef} className="xl:sticky xl:bottom-2">

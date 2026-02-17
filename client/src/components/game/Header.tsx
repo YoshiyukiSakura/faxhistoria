@@ -20,8 +20,8 @@ export function Header() {
     activeTurnRecord?.year ?? gameState.currentYear - (gameState.turnNumber - activeTurn);
 
   return (
-    <header className={`${appTheme.pageHeader} px-3 py-2 sm:px-4 sm:py-1.5`}>
-      <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
+    <header className={`${appTheme.pageHeader} px-3 py-1.5 sm:px-4 sm:py-1`}>
+      <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-3">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Button
             variant="secondary"
@@ -41,37 +41,38 @@ export function Header() {
           </div>
         </div>
 
-        {viewingHistory ? (
-          <Button
-            variant="secondary"
-            className="px-2.5 py-0.5 text-[11px]"
-            onClick={jumpToCurrentTurn}
-          >
-            Current Turn
-          </Button>
-        ) : null}
-      </div>
-
-      <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs sm:mt-1 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-4">
-        <div className="text-text-secondary">
-          Year <span className="font-semibold text-text-main">{activeYear}</span>
-        </div>
-        <div className="text-text-secondary">
-          Turn <span className="font-semibold text-text-main">{activeTurn}</span>
-        </div>
-        {playerCountry && (
-          <>
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+          {viewingHistory ? (
+            <Button
+              variant="secondary"
+              className="px-2.5 py-0.5 text-[11px]"
+              onClick={jumpToCurrentTurn}
+            >
+              Current Turn
+            </Button>
+          ) : null}
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-0.5 text-[11px] sm:text-xs">
             <div className="text-text-secondary">
-              Stability{' '}
-              <span className="font-semibold text-text-main">
-                {playerCountry.stability}%
-              </span>
+              Year <span className="font-semibold text-text-main">{activeYear}</span>
             </div>
             <div className="text-text-secondary">
-              GDP <span className="font-semibold text-text-main">${playerCountry.gdp}B</span>
+              Turn <span className="font-semibold text-text-main">{activeTurn}</span>
             </div>
-          </>
-        )}
+            {playerCountry && (
+              <>
+                <div className="text-text-secondary">
+                  Stability{' '}
+                  <span className="font-semibold text-text-main">
+                    {playerCountry.stability}%
+                  </span>
+                </div>
+                <div className="text-text-secondary">
+                  GDP <span className="font-semibold text-text-main">${playerCountry.gdp}B</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </header>
   );
