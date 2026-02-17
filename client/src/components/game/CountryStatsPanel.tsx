@@ -9,7 +9,7 @@ export function CountryStatsPanel() {
 
   if (!selectedCountry) {
     return (
-      <div className="app-panel p-4">
+      <div className="app-panel h-full min-h-0 overflow-y-auto p-4">
         <p className="text-sm text-text-secondary text-center">
           Click a country on the map to view details
         </p>
@@ -25,7 +25,7 @@ export function CountryStatsPanel() {
   const country = liveCountry ?? (initialCountry ? { ...initialCountry, relations: [] } : { ...fallback, relations: [] });
 
   return (
-    <div className="app-panel p-4">
+    <div className="app-panel h-full min-h-0 overflow-y-auto p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span

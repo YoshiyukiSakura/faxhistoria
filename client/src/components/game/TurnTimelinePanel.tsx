@@ -105,7 +105,7 @@ export function TurnTimelinePanel() {
   const keyMomentCount = keyTurnsAsc.length;
 
   return (
-    <div className="app-panel p-4">
+    <div className="app-panel flex h-full min-h-0 flex-col p-4">
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-text-main">Timeline</h3>
@@ -165,7 +165,7 @@ export function TurnTimelinePanel() {
         </Button>
       </div>
 
-      <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {timelineTurns.map((turn) => {
           const selected = turn.turnNumber === activeTurn;
           const keyMoment = isKeyMoment(turn);

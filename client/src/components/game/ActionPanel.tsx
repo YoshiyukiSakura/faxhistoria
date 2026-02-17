@@ -127,7 +127,7 @@ export function ActionPanel() {
   const finalCount = turnLiveEvents.length;
 
   return (
-    <div className="app-panel flex flex-col gap-3 p-4">
+    <div className="app-panel flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-text-main">
           {viewingHistory ? 'Submitted Action' : 'Your Action'}

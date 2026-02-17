@@ -72,7 +72,7 @@ export function EventLog() {
   }, [activeTurn, displayEvents]);
 
   return (
-    <div className="app-panel flex flex-col">
+    <div className="app-panel flex h-full min-h-0 flex-col">
       <h3 className="border-b border-border px-4 py-3 text-sm font-semibold text-text-main">
         {viewingHistory ? `Turn ${activeTurn} Events` : 'Recent Events'}
       </h3>

@@ -162,9 +162,9 @@ export function GameUI() {
             </Button>
           </div>
         ) : null}
-        <main className="flex-1 overflow-y-auto px-3 py-3 sm:px-4">
-          <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3">
-            <div className="app-panel sticky top-3 z-20 p-2">
+        <main className="flex-1 min-h-0 overflow-y-auto px-3 py-3 sm:px-4 xl:overflow-hidden">
+          <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 xl:h-full xl:min-h-0">
+            <div className="app-panel p-2">
               <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                 <Button
                   variant="secondary"
@@ -209,31 +209,33 @@ export function GameUI() {
               </div>
             </div>
 
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)]">
-              <div className="app-panel h-[42vh] min-h-[320px] overflow-hidden sm:h-[46vh] xl:h-[62vh] xl:max-h-[640px]">
-                <WorldMap />
-              </div>
-              <div ref={actionSectionRef}>
-                <ActionPanel />
-              </div>
-            </div>
-
-            <div ref={historySectionRef} className="grid gap-3 xl:grid-cols-2">
-              <TurnTimelinePanel />
-              <EventLog />
-            </div>
-
-            <div className="grid gap-3 xl:grid-cols-2">
-              <div ref={intelSectionRef}>
-                <CountryStatsPanel />
+            <div className="grid gap-3 xl:min-h-0 xl:flex-1 xl:grid-rows-[minmax(0,1.52fr)_minmax(0,1fr)_minmax(0,0.86fr)]">
+              <div className="grid gap-3 xl:min-h-0 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)]">
+                <div className="app-panel min-h-[300px] overflow-hidden xl:h-full xl:min-h-0">
+                  <WorldMap />
+                </div>
+                <div ref={actionSectionRef} className="xl:min-h-0">
+                  <ActionPanel />
+                </div>
               </div>
 
-              <div ref={worldSectionRef} className="app-panel p-4">
-                <h3 className="mb-2 text-sm font-semibold text-text-main">World Situation</h3>
-                <p className="text-sm leading-relaxed text-text-secondary">
-                  {gameState.worldNarrative ??
-                    'No global narrative has been generated yet. Submit a turn to grow the world context.'}
-                </p>
+              <div ref={historySectionRef} className="grid gap-3 xl:min-h-0 xl:grid-cols-2">
+                <TurnTimelinePanel />
+                <EventLog />
+              </div>
+
+              <div className="grid gap-3 xl:min-h-0 xl:grid-cols-2">
+                <div ref={intelSectionRef} className="xl:min-h-0">
+                  <CountryStatsPanel />
+                </div>
+
+                <div ref={worldSectionRef} className="app-panel h-full min-h-0 overflow-y-auto p-4">
+                  <h3 className="mb-2 text-sm font-semibold text-text-main">World Situation</h3>
+                  <p className="text-sm leading-relaxed text-text-secondary">
+                    {gameState.worldNarrative ??
+                      'No global narrative has been generated yet. Submit a turn to grow the world context.'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
