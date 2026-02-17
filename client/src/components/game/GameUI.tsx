@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useGameStore } from '../../stores/game-store';
+import { useUIStore } from '../../stores/ui-store';
 import { Header } from './Header';
 import { WorldMap } from './WorldMap';
 import { ActionPanel } from './ActionPanel';
@@ -9,6 +10,7 @@ import { CountryStatsPanel } from './CountryStatsPanel';
 import { TurnTimelinePanel } from './TurnTimelinePanel';
 import { Spinner } from '../common/Spinner';
 import { Button } from '../common/Button';
+import { Modal } from '../common/Modal';
 import { GameOnboardingModal } from './GameOnboardingModal';
 import { appTheme } from '../../theme/theme';
 
@@ -17,10 +19,13 @@ export function GameUI() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showWorldNarrativeModal, setShowWorldNarrativeModal] = useState(false);
+  const mapSectionRef = useRef<HTMLDivElement>(null);
   const actionSectionRef = useRef<HTMLDivElement>(null);
   const historySectionRef = useRef<HTMLDivElement>(null);
-  const intelSectionRef = useRef<HTMLDivElement>(null);
   const worldSectionRef = useRef<HTMLDivElement>(null);
+  const selectedCountry = useUIStore((s) => s.selectedCountry);
+  const selectCountry = useUIStore((s) => s.selectCountry);
   const {
     loadGame,
     gameState,
@@ -38,11 +43,11 @@ export function GameUI() {
     [id],
   );
 
-  const scrollToSection = useCallback((section: 'action' | 'history' | 'intel' | 'world') => {
+  const scrollToSection = useCallback((section: 'map' | 'action' | 'history' | 'world') => {
     const sectionMap = {
+      map: mapSectionRef,
       action: actionSectionRef,
       history: historySectionRef,
-      intel: intelSectionRef,
       world: worldSectionRef,
     };
     sectionMap[section].current?.scrollIntoView({
@@ -52,13 +57,15 @@ export function GameUI() {
   }, []);
 
   useEffect(() => {
+    selectCountry(null);
     if (id) {
       loadGame(id);
     }
     return () => {
       clearCurrentGame();
+      selectCountry(null);
     };
-  }, [id, loadGame, clearCurrentGame]);
+  }, [id, loadGame, clearCurrentGame, selectCountry]);
 
   useEffect(() => {
     if (!gameState) return;
@@ -134,6 +141,14 @@ export function GameUI() {
   const activeTurn = viewedTurnNumber ?? gameState.turnNumber;
   const viewingHistory = activeTurn < gameState.turnNumber;
   const turnGap = gameState.turnNumber - activeTurn;
+  const worldNarrative =
+    gameState.worldNarrative ??
+    'No global narrative has been generated yet. Submit a turn to grow the world context.';
+  const compactWorldNarrative = worldNarrative.replace(/\s+/g, ' ').trim();
+  const worldNarrativeSummary =
+    compactWorldNarrative.length > 158
+      ? `${compactWorldNarrative.slice(0, 158).trimEnd()}...`
+      : compactWorldNarrative;
   const handleOnboardingClose = (hideForever: boolean) => {
     if (hideForever && onboardingStorageKey) {
       window.localStorage.setItem(onboardingStorageKey, '1');
@@ -169,6 +184,13 @@ export function GameUI() {
                 <Button
                   variant="secondary"
                   className="px-2 py-1 text-[11px]"
+                  onClick={() => scrollToSection('map')}
+                >
+                  Map
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="px-2 py-1 text-[11px]"
                   onClick={() => scrollToSection('action')}
                 >
                   Action
@@ -179,13 +201,6 @@ export function GameUI() {
                   onClick={() => scrollToSection('history')}
                 >
                   History
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="px-2 py-1 text-[11px]"
-                  onClick={() => scrollToSection('intel')}
-                >
-                  Intel
                 </Button>
                 <Button
                   variant="secondary"
@@ -219,47 +234,69 @@ export function GameUI() {
               </button>
             </div>
 
-            <div className="grid gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(18rem,0.95fr)_minmax(0,1.85fr)_minmax(22rem,1.05fr)]">
-              <section className="order-1 app-panel min-h-[320px] overflow-hidden sm:min-h-[420px] xl:order-2 xl:h-full xl:min-h-0">
+            <div className="grid gap-3 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(19rem,0.92fr)_minmax(0,2fr)_minmax(20rem,0.9fr)]">
+              <div
+                ref={mapSectionRef}
+                className="order-1 app-panel min-h-[320px] overflow-hidden sm:min-h-[420px] xl:order-2 xl:h-full xl:min-h-0"
+              >
                 <WorldMap />
-              </section>
+              </div>
 
               <aside
                 ref={historySectionRef}
                 className="order-2 flex min-h-0 flex-col gap-3 xl:order-1 xl:h-full xl:overflow-y-auto xl:pr-1"
               >
-                <div className="min-h-[280px] xl:min-h-0 xl:flex-[1.2]">
+                <div className="min-h-[250px] xl:min-h-0 xl:flex-[0.95]">
                   <TurnTimelinePanel />
                 </div>
-                <div className="min-h-[260px] xl:min-h-0 xl:flex-1">
+                <div className="min-h-[340px] xl:min-h-0 xl:flex-[1.35]">
                   <EventLog />
                 </div>
               </aside>
 
-              <aside className="order-3 flex min-h-0 flex-col gap-3 xl:h-full xl:overflow-y-auto xl:pl-1">
-                <div ref={actionSectionRef} className="min-h-[320px] xl:min-h-0 xl:flex-[1.2]">
+              <aside className="order-3 flex min-h-0 flex-col gap-3 xl:h-full xl:overflow-visible xl:pl-1">
+                <div ref={actionSectionRef} className="min-h-[320px] xl:min-h-0 xl:flex-1">
                   <ActionPanel />
                 </div>
 
-                <div ref={intelSectionRef} className="min-h-[220px] xl:min-h-0 xl:flex-1">
-                  <CountryStatsPanel />
-                </div>
-
-                <div
-                  ref={worldSectionRef}
-                  className="app-panel min-h-[180px] p-4 xl:min-h-0 xl:flex-[0.92] xl:overflow-y-auto"
-                >
-                  <h3 className="mb-2 text-sm font-semibold text-text-main">World Situation</h3>
-                  <p className="text-sm leading-relaxed text-text-secondary">
-                    {gameState.worldNarrative ??
-                      'No global narrative has been generated yet. Submit a turn to grow the world context.'}
-                  </p>
+                <div ref={worldSectionRef} className="xl:sticky xl:bottom-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowWorldNarrativeModal(true)}
+                    className="app-panel-soft w-full cursor-pointer p-3 text-left transition hover:border-primary/55"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-text-main">
+                        World Brief
+                      </h3>
+                      <span className="text-[11px] text-primary">Details</span>
+                    </div>
+                    <p className="mt-2 text-xs leading-relaxed text-text-secondary">
+                      {worldNarrativeSummary}
+                    </p>
+                  </button>
                 </div>
               </aside>
             </div>
           </div>
         </main>
       </div>
+      <Modal
+        open={Boolean(selectedCountry)}
+        onClose={() => selectCountry(null)}
+        title={selectedCountry ? `${selectedCountry} Intel` : 'Country Intel'}
+      >
+        <CountryStatsPanel />
+      </Modal>
+      <Modal
+        open={showWorldNarrativeModal}
+        onClose={() => setShowWorldNarrativeModal(false)}
+        title="World Situation"
+      >
+        <div className="max-h-[66vh] overflow-y-auto pr-1">
+          <p className="text-sm leading-relaxed text-text-secondary">{worldNarrative}</p>
+        </div>
+      </Modal>
       <GameOnboardingModal open={showOnboarding} onClose={handleOnboardingClose} />
     </div>
   );

@@ -20,22 +20,22 @@ export function Header() {
     activeTurnRecord?.year ?? gameState.currentYear - (gameState.turnNumber - activeTurn);
 
   return (
-    <header className={`${appTheme.pageHeader} px-4 py-3`}>
-      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+    <header className={`${appTheme.pageHeader} px-3 py-2 sm:px-4 sm:py-1.5`}>
+      <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Button
             variant="secondary"
-            className="px-2 py-1 text-xs"
+            className="px-2 py-0.5 text-[11px]"
             onClick={() => navigate('/lobby')}
           >
             Lobby
           </Button>
           <div className="flex items-center gap-2">
             <span
-              className="inline-block h-3 w-3 rounded-full"
+              className="inline-block h-2.5 w-2.5 rounded-full"
               style={{ backgroundColor: playerCountry?.color ?? '#9CA3AF' }}
             />
-            <span className="font-semibold text-text-main">
+            <span className="text-sm font-semibold text-text-main">
               {playerCountry?.displayName ?? gameState.playerCountry}
             </span>
           </div>
@@ -44,7 +44,7 @@ export function Header() {
         {viewingHistory ? (
           <Button
             variant="secondary"
-            className="px-3 py-1 text-xs"
+            className="px-2.5 py-0.5 text-[11px]"
             onClick={jumpToCurrentTurn}
           >
             Current Turn
@@ -52,7 +52,7 @@ export function Header() {
         ) : null}
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:mt-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-6">
+      <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs sm:mt-1 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-4">
         <div className="text-text-secondary">
           Year <span className="font-semibold text-text-main">{activeYear}</span>
         </div>
