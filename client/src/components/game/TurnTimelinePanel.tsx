@@ -106,7 +106,7 @@ export function TurnTimelinePanel() {
 
   return (
     <div className="app-panel p-4">
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-text-main">Timeline</h3>
           <p className="mt-1 text-xs text-text-secondary">
@@ -127,7 +127,7 @@ export function TurnTimelinePanel() {
         ) : null}
       </div>
 
-      <div className="mb-2 grid grid-cols-2 gap-2">
+      <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Button
           variant="secondary"
           className="w-full py-1.5 text-xs"
@@ -146,7 +146,7 @@ export function TurnTimelinePanel() {
         </Button>
       </div>
 
-      <div className="mb-3 grid grid-cols-2 gap-2">
+      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Button
           variant="secondary"
           className="w-full py-1.5 text-xs"
@@ -165,7 +165,7 @@ export function TurnTimelinePanel() {
         </Button>
       </div>
 
-      <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+      <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
         {timelineTurns.map((turn) => {
           const selected = turn.turnNumber === activeTurn;
           const keyMoment = isKeyMoment(turn);

@@ -76,7 +76,7 @@ export function EventLog() {
       <h3 className="border-b border-border px-4 py-3 text-sm font-semibold text-text-main">
         {viewingHistory ? `Turn ${activeTurn} Events` : 'Recent Events'}
       </h3>
-      <div className="flex-1 overflow-y-auto p-2" style={{ maxHeight: '300px' }}>
+      <div className="flex-1 overflow-y-auto p-2">
         {displayEvents.length > 0 ? (
           <div className="mb-2 rounded-lg border border-border bg-bg/65 p-2">
             <div className="mb-2 flex items-center justify-between gap-2">
@@ -99,7 +99,7 @@ export function EventLog() {
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 className="rounded-md border border-border bg-surface px-2 py-1 text-xs text-text-main transition hover:border-primary/70 disabled:cursor-not-allowed disabled:opacity-50"

@@ -162,14 +162,10 @@ export function GameUI() {
             </Button>
           </div>
         ) : null}
-        <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
-          <div className="min-h-[38vh] flex-1 overflow-hidden lg:min-h-0">
-            <WorldMap />
-          </div>
-
-          <div className="flex w-full max-h-[55vh] flex-col gap-3 overflow-y-auto border-t border-border/75 bg-[#091426]/74 p-3 lg:max-h-none lg:w-[27rem] lg:border-l lg:border-t-0">
-            <div className="app-panel sticky top-0 z-10 p-2">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <main className="flex-1 overflow-y-auto px-3 py-3 sm:px-4">
+          <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3">
+            <div className="app-panel sticky top-3 z-20 p-2">
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                 <Button
                   variant="secondary"
                   className="px-2 py-1 text-[11px]"
@@ -213,29 +209,35 @@ export function GameUI() {
               </div>
             </div>
 
-            <div ref={actionSectionRef}>
-              <ActionPanel />
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)]">
+              <div className="app-panel h-[42vh] min-h-[320px] overflow-hidden sm:h-[46vh] xl:h-[62vh] xl:max-h-[640px]">
+                <WorldMap />
+              </div>
+              <div ref={actionSectionRef}>
+                <ActionPanel />
+              </div>
             </div>
-            <div ref={historySectionRef} className="space-y-3">
+
+            <div ref={historySectionRef} className="grid gap-3 xl:grid-cols-2">
               <TurnTimelinePanel />
               <EventLog />
             </div>
-            <div ref={intelSectionRef}>
-              <CountryStatsPanel />
-            </div>
 
-            {gameState.worldNarrative ? (
+            <div className="grid gap-3 xl:grid-cols-2">
+              <div ref={intelSectionRef}>
+                <CountryStatsPanel />
+              </div>
+
               <div ref={worldSectionRef} className="app-panel p-4">
                 <h3 className="mb-2 text-sm font-semibold text-text-main">World Situation</h3>
                 <p className="text-sm leading-relaxed text-text-secondary">
-                  {gameState.worldNarrative}
+                  {gameState.worldNarrative ??
+                    'No global narrative has been generated yet. Submit a turn to grow the world context.'}
                 </p>
               </div>
-            ) : (
-              <div ref={worldSectionRef} />
-            )}
+            </div>
           </div>
-        </div>
+        </main>
       </div>
       <GameOnboardingModal open={showOnboarding} onClose={handleOnboardingClose} />
     </div>

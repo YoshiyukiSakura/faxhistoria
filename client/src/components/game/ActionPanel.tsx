@@ -316,11 +316,12 @@ export function ActionPanel() {
               </div>
             </div>
           )}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-xs text-text-secondary">
               {action.length}/2000
             </span>
             <Button
+              className="w-full sm:w-auto"
               onClick={handleSubmit}
               loading={turnSubmitting}
               disabled={!action.trim()}
